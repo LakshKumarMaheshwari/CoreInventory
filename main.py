@@ -34,7 +34,7 @@ locations_db = [
 ]
 receipts_db = []
 deliveries_db = []
-moves_db = []  # Move history
+moves_db = []
 _ref_in = 0
 _ref_out = 0
 _ref_transfer = 0
@@ -81,6 +81,10 @@ class ProductCreate(BaseModel):
     per_unit_cost: float = 0
     on_hand: int = 0
     free_to_use: Optional[int] = None
+    category: Optional[str] = ""
+    sku: Optional[str] = ""
+    unit_of_measure: Optional[str] = ""
+    low_stock_threshold: Optional[int] = 0
 
 
 class ProductUpdate(BaseModel):
@@ -88,6 +92,10 @@ class ProductUpdate(BaseModel):
     per_unit_cost: Optional[float] = None
     on_hand: Optional[int] = None
     free_to_use: Optional[int] = None
+    category: Optional[str] = None
+    sku: Optional[str] = None
+    unit_of_measure: Optional[str] = None
+    low_stock_threshold: Optional[int] = None
 
 
 class WarehouseCreate(BaseModel):
@@ -158,7 +166,7 @@ class DeliveryUpdate(BaseModel):
 # --- Auth ---
 @app.get("/")
 async def root():
-    return FileResponse(Path(_file_).parent / "index.html")
+    return FileResponse(Path(__file__).parent / "index.html")
 
 
 @app.get("/api/health")
@@ -234,7 +242,7 @@ async def get_products(search: Optional[str] = Query(None)):
     items = products_db
     if search:
         s = search.lower()
-        items = [p for p in items if s in p.get("name", "").lower()]
+        items = [p for p in items if s in p.get("name", "").lower() or s in p.get("sku", "").lower()]
     return {"products": items}
 
 
@@ -251,6 +259,10 @@ async def create_product(p: ProductCreate):
         "on_hand": p.on_hand,
         "free_to_use": fid,
         "locations": locations,
+        "category": p.category or "",
+        "sku": p.sku or "",
+        "unit_of_measure": p.unit_of_measure or "",
+        "low_stock_threshold": p.low_stock_threshold or 0,
     }
     products_db.append(new_p)
     return new_p
@@ -268,7 +280,7 @@ async def update_product(product_id: str, body: ProductUpdate):
     return p
 
 
-# --- Stock (Product table with per-location breakdown) ---
+# --- Stock ---
 @app.get("/api/stock")
 async def get_stock():
     result = []
@@ -282,6 +294,10 @@ async def get_stock():
             "on_hand": p.get("on_hand", 0),
             "free_to_use": p.get("free_to_use", p.get("on_hand", 0)),
             "locations": locs,
+            "category": p.get("category", ""),
+            "sku": p.get("sku", ""),
+            "unit_of_measure": p.get("unit_of_measure", ""),
+            "low_stock_threshold": p.get("low_stock_threshold", 0),
         })
     return {"stock": result}
 
@@ -344,6 +360,7 @@ def _ensure_locations(p: dict):
 
 @app.post("/api/receipts")
 async def create_receipt(r: ReceiptCreate):
+    """Save as Draft only — no stock addition. Use /done to commit."""
     ref = next_ref("IN")
     to_loc = r.to_location or (locations_db[0]["name"] if locations_db else "Main Store")
     products = []
@@ -372,6 +389,7 @@ async def create_receipt(r: ReceiptCreate):
 
 @app.post("/api/receipts/{receipt_id}/done")
 async def complete_receipt(receipt_id: str):
+    """Mark receipt Done — adds stock and logs the move."""
     r = next((x for x in receipts_db if x["id"] == receipt_id), None)
     if not r:
         raise HTTPException(status_code=404, detail="Receipt not found")
@@ -433,6 +451,7 @@ async def get_delivery(delivery_id: str):
 
 @app.post("/api/deliveries")
 async def create_delivery(d: DeliveryCreate):
+    """Save as Draft only — no stock deduction. Use /done to commit."""
     ref = next_ref("OUT")
     from_loc = d.from_location or (locations_db[0]["name"] if locations_db else "Main Store")
     products = []
@@ -462,21 +481,9 @@ async def create_delivery(d: DeliveryCreate):
     return new_d
 
 
-@app.patch("/api/deliveries/{delivery_id}")
-async def update_delivery(delivery_id: str, body: DeliveryUpdate):
-    d = next((x for x in deliveries_db if x["id"] == delivery_id), None)
-    if not d:
-        raise HTTPException(status_code=404, detail="Delivery not found")
-    if body.status:
-        d["status"] = body.status
-    for k, v in body.model_dump(exclude_unset=True).items():
-        if k != "status" and v is not None:
-            d[k] = v
-    return d
-
-
 @app.post("/api/deliveries/{delivery_id}/done")
 async def complete_delivery(delivery_id: str):
+    """Mark delivery Done — deducts stock and logs the move."""
     d = next((x for x in deliveries_db if x["id"] == delivery_id), None)
     if not d:
         raise HTTPException(status_code=404, detail="Delivery not found")
@@ -500,6 +507,19 @@ async def complete_delivery(delivery_id: str):
                          "contact": d.get("contact", ""), "from_loc": from_loc, "to_loc": "vendor",
                          "product": p["name"], "qty": qty, "type": "OUT", "status": "Done"})
     d["status"] = "Done"
+    return d
+
+
+@app.patch("/api/deliveries/{delivery_id}")
+async def update_delivery(delivery_id: str, body: DeliveryUpdate):
+    d = next((x for x in deliveries_db if x["id"] == delivery_id), None)
+    if not d:
+        raise HTTPException(status_code=404, detail="Delivery not found")
+    if body.status:
+        d["status"] = body.status
+    for k, v in body.model_dump(exclude_unset=True).items():
+        if k != "status" and v is not None:
+            d[k] = v
     return d
 
 
@@ -568,6 +588,11 @@ async def get_stats():
     del_late = [d for d in del_draft if d.get("schedule_date") and d["schedule_date"] < today]
     del_wait = len([d for d in deliveries_db if d.get("status") == "Waiting"])
     del_ops = len([d for d in deliveries_db if d.get("status") != "Done"])
+    total_products = len(products_db)
+    low_stock = [p for p in products_db if p.get("low_stock_threshold", 0) > 0 and p.get("on_hand", 0) <= p.get("low_stock_threshold", 0) and p.get("on_hand", 0) > 0]
+    out_of_stock = [p for p in products_db if p.get("on_hand", 0) == 0]
+    pending_receipts = len([r for r in receipts_db if r.get("status") == "Draft"])
+    pending_deliveries = len([d for d in deliveries_db if d.get("status") == "Draft"])
     return {
         "receipt_to_receive": len([r for r in receipts_db if r.get("status") == "Ready"]),
         "receipt_late": len(rec_late),
@@ -576,9 +601,16 @@ async def get_stats():
         "delivery_late": len(del_late),
         "delivery_waiting": del_wait,
         "delivery_operations": del_ops,
+        "total_products": total_products,
+        "low_stock_count": len(low_stock),
+        "out_of_stock_count": len(out_of_stock),
+        "pending_receipts": pending_receipts,
+        "pending_deliveries": pending_deliveries,
+        "low_stock_items": [{"name": p["name"], "on_hand": p["on_hand"], "threshold": p.get("low_stock_threshold", 0)} for p in low_stock],
+        "out_of_stock_items": [{"name": p["name"]} for p in out_of_stock],
     }
 
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
