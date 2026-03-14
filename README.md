@@ -1,11 +1,9 @@
 **Core Inventory**
-
 A lightweight inventory management system built with FastAPI (backend) and vanilla HTML/CSS/JS (frontend). Supports multi-user authentication, receipts, deliveries, internal transfers, stock adjustments, and move history.
 
 
 
 **Features**
-
 Authentication — Sign up, sign in, forgot password (OTP-based reset), and sign out
 
 Per-user data isolation — Receipts and deliveries are scoped to the logged-in user
@@ -27,37 +25,25 @@ Warehouses \& Locations — Add warehouses and sub-locations via Settings
 
 
 **Project Structure**
-
 The project is two files. main.py is the FastAPI backend containing all API routes and in-memory data stores. index.html is the single-page frontend covering login, the dashboard, and all views.
 
 
-
 **Requirements**
-
 Python 3.8+
-
 FastAPI
-
 Uvicorn
 
 
-
 **Installation**
-
 bashpip install fastapi uvicorn
 
 
-
 **Running the App**
-
 bashpython main.py
-
 Then open your browser at http://localhost:8000.
 
 
-
 **API Overview**
-
 Auth
 
 POST /api/register registers a new user. POST /api/login logs in. POST /api/request-otp sends a password reset OTP. POST /api/reset-password resets the password using that OTP.
@@ -79,15 +65,11 @@ Products, Stock and Warehouses
 GET /api/products and POST /api/products list and create products. PATCH /api/products/{id} updates a product. GET /api/stock returns stock levels with a per-location breakdown. GET /api/warehouses and POST /api/warehouses manage warehouses. GET /api/locations and POST /api/locations manage locations. GET /api/moves returns the full searchable move history. GET /api/stats returns dashboard summary counts.
 
 
-
 **Receipt and Delivery Flow**
-
 Both operations follow a two-step flow: Draft then Done. Clicking Save Draft records the operation without touching stock. Clicking Mark as Done commits the stock change and logs it in Move History. You can click any row in the Receipts or Deliveries table to reopen it and advance its status.
 
 
-
 **Notes**
-
 Data is stored in-memory and will reset when the server restarts. For persistence, replace the in-memory lists with a database such as SQLite via SQLAlchemy. OTPs for password reset are printed to the server console. The default warehouse and two locations (Main Store and Production Rack) are pre-loaded on startup.
 
 
