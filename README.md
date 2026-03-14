@@ -1,212 +1,71 @@
-CoreInventory
+*Core Inventory*
+A lightweight inventory management system built with FastAPI (backend) and vanilla HTML/CSS/JS (frontend). Supports multi-user authentication, receipts, deliveries, internal transfers, stock adjustments, and move history.
 
-CoreInventory is a lightweight inventory management system built using FastAPI (backend) and vanilla HTML, CSS, and JavaScript (frontend).
 
-The system allows businesses to manage inventory operations such as receipts, deliveries, internal transfers, and stock adjustments, while maintaining a complete audit history of all inventory movements.
 
-It also supports multi-user authentication and per-user data isolation, ensuring that users only see their own operational records.
+*Features*
+Authentication — Sign up, sign in, forgot password (OTP-based reset), and sign out
 
-Features
-Authentication
+Per-user data isolation — Receipts and deliveries are scoped to the logged-in user
 
-Sign up for a new account
+Receipt management — Create receipts as Draft, then Mark as Done to add stock
 
-Secure sign in
+Delivery management — Create deliveries as Draft, then Mark as Done to deduct stock
 
-Forgot password with OTP-based reset
+Internal Transfer — Move stock between locations without changing total on-hand
 
-Sign out functionality
+Stock Adjustment — Correct stock levels with a reason (supports negative adjustments)
 
-Per-User Data Isolation
+Stock View — Per-product breakdown by location with editable unit cost
 
-Receipts and deliveries are scoped to the logged-in user, preventing access to other users’ records.
+Move History — Full audit log of all IN / OUT / Transfer / Adjustment operations
 
-Receipt Management
+Warehouses \& Locations — Add warehouses and sub-locations via Settings
 
-Create receipts as Draft
 
-Mark receipts as Done to add stock
 
-Edit receipt information before finalizing
+*Project Structure*
+The project is two files. main.py is the FastAPI backend containing all API routes and in-memory data stores. index.html is the single-page frontend covering login, the dashboard, and all views.
 
-Delivery Management
 
-Create deliveries as Draft
-
-Mark deliveries as Done to deduct stock
-
-Update delivery information before completion
-
-Internal Transfer
-
-Move stock between different locations within a warehouse without changing the total on-hand quantity.
-
-Stock Adjustment
-
-Correct stock levels when discrepancies occur.
-Supports negative adjustments for losses, damage, or shrinkage.
-
-Stock View
-
-Displays:
-
-Total product stock
-
-Location-wise inventory breakdown
-
-Editable per-unit cost
-
-Move History
-
-Maintains a complete audit log of:
-
-Stock IN
-
-Stock OUT
-
-Internal transfers
-
-Stock adjustments
-
-Warehouses and Locations
-
-Allows adding:
-
-Multiple warehouses
-
-Multiple locations within each warehouse
-
-These can be managed from the Settings section.
-
-Project Structure
-
-The project consists of two main files.
-
-main.py
-
-FastAPI backend that:
-
-Defines all API routes
-
-Handles authentication
-
-Manages inventory logic
-
-Stores data in memory
-
-index.html
-
-Single-page frontend containing:
-
-Login and authentication UI
-
-Dashboard
-
-Receipts and deliveries management
-
-Stock and warehouse views
-
-Requirements
-
-Python 3.8 or higher
-
+*Requirements*
+Python 3.8+
 FastAPI
-
 Uvicorn
 
-Installation
 
-Install required dependencies:
+*Installation*
+bashpip install fastapi uvicorn
 
-pip install fastapi uvicorn
-Running the Application
 
-Start the backend server:
+*Running the App*
+"py -m uvicorn main:app --reload" in your console then open the index.html document in google from file explorer
 
-python -m uvicorn main:app --reload
+*API Overview*
+Auth
 
-After the server starts, open index.html in Google Chrome directly from your file explorer.
+POST /api/register registers a new user. POST /api/login logs in. POST /api/request-otp sends a password reset OTP. POST /api/reset-password resets the password using that OTP.
 
-API Overview
-Authentication
-Endpoint	Description
-POST /api/register	Register a new user
-POST /api/login	Log in a user
-POST /api/request-otp	Send OTP for password reset
-POST /api/reset-password	Reset password using OTP
 Receipts
-Endpoint	Description
-GET /api/receipts	List receipts for the logged-in user
-GET /api/receipts/{id}	Retrieve a specific receipt
-POST /api/receipts	Create a receipt in Draft state
-POST /api/receipts/{id}/done	Mark receipt as Done and add stock
-PATCH /api/receipts/{id}	Update receipt details
+
+GET /api/receipts lists receipts filtered by the logged-in user. GET /api/receipts/{id} fetches a single receipt. POST /api/receipts creates a receipt saved as Draft. POST /api/receipts/{id}/done marks it as Done and adds stock. PATCH /api/receipts/{id} updates receipt fields.
+
 Deliveries
-Endpoint	Description
-GET /api/deliveries	List deliveries for the logged-in user
-GET /api/deliveries/{id}	Retrieve a specific delivery
-POST /api/deliveries	Create a delivery in Draft state
-POST /api/deliveries/{id}/done	Mark delivery as Done and deduct stock
-PATCH /api/deliveries/{id}	Update delivery details
+
+GET /api/deliveries lists deliveries filtered by the logged-in user. GET /api/deliveries/{id} fetches a single delivery. POST /api/deliveries creates a delivery saved as Draft. POST /api/deliveries/{id}/done marks it as Done and deducts stock. PATCH /api/deliveries/{id} updates delivery fields.
+
 Other Operations
-Endpoint	Description
-POST /api/transfers	Move stock between locations
-POST /api/adjustments	Adjust stock levels with a reason
-Products, Stock, and Warehouses
-Endpoint	Description
-GET /api/products	List all products
-POST /api/products	Create a new product
-PATCH /api/products/{id}	Update product details
-GET /api/stock	View stock with location breakdown
-GET /api/warehouses	List warehouses
-POST /api/warehouses	Create a new warehouse
-GET /api/locations	List locations
-POST /api/locations	Create a new location
-GET /api/moves	View inventory move history
-GET /api/stats	Get dashboard statistics
-Receipt and Delivery Workflow
 
-Both receipts and deliveries follow a two-step workflow.
+POST /api/transfers moves stock between two locations without changing total on-hand. POST /api/adjustments corrects stock at a location and accepts negative values for losses or damage.
 
-Step 1 – Draft
+Products, Stock and Warehouses
 
-The operation is saved as a draft.
-Stock levels are not changed.
+GET /api/products and POST /api/products list and create products. PATCH /api/products/{id} updates a product. GET /api/stock returns stock levels with a per-location breakdown. GET /api/warehouses and POST /api/warehouses manage warehouses. GET /api/locations and POST /api/locations manage locations. GET /api/moves returns the full searchable move history. GET /api/stats returns dashboard summary counts.
 
-Step 2 – Done
 
-When marked as Done:
+*Receipt and Delivery Flow*
+Both operations follow a two-step flow: Draft then Done. Clicking Save Draft records the operation without touching stock. Clicking Mark as Done commits the stock change and logs it in Move History. You can click any row in the Receipts or Deliveries table to reopen it and advance its status.
 
-Stock is updated
 
-A record is added to Move History
-
-Users can click any row in the Receipts or Deliveries table to reopen and update the record.
-
-Notes
-
-All data is stored in memory, meaning it will reset when the server restarts.
-
-For permanent storage, replace the in-memory lists with a database such as:
-
-SQLite
-
-PostgreSQL
-
-MySQL
-
-OTPs used for password reset are printed in the server console.
-
-On startup, the system automatically creates:
-
-One default warehouse
-
-Two default locations:
-
-Main Store
-
-Production Rack
-
-✅ This version is clean, bug-free, and ready for hackathon submission or GitHub documentation.
-
-If you want, I can also show you a 5-line addition that will make your README look 10× more professional for judges (with demo section, screenshots, and badges). 🚀
+*Notes*
+Data is stored in-memory and will reset when the server restarts. For persistence, replace the in-memory lists with a database such as SQLite via SQLAlchemy. OTPs for password reset are printed to the server console. The default warehouse and two locations (Main Store and Production Rack) are pre-loaded on startup.
