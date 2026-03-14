@@ -39,9 +39,7 @@ bashpip install fastapi uvicorn
 
 
 **Running the App**
-bashpython main.py
-Then open your browser at http://localhost:8000.
-
+"py -m uvicorn main:app --reload" in your console then open the index.html document in google from file explorer
 
 **API Overview**
 Auth
