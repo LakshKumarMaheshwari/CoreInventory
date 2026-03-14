@@ -1,279 +1,607 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoreInventory | Inventory Management System</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <title>CoreInventory | Modular IMS</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; }
-        .glass { background: white; border: 1px solid #e2e8f0; border-radius: 12px; }
-        .nav-link.active { background-color: #eff6ff; color: #2563eb; border-left: 4px solid #2563eb; }
-        .btn-primary { background: #2563eb; color: white; font-weight: 600; transition: all 0.2s; }
-        .btn-primary:hover { background: #1d4ed8; }
-        .stat-card { background: white; padding: 1.5rem; border-radius: 16px; border: 1px solid #e2e8f0; }
-        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        body { font-family: 'DM Sans', sans-serif; }
+        .nav-link.active { background: #e0f2fe; color: #0284c7; border-left: 4px solid #0284c7; }
+        .nav-link:hover:not(.active) { background: #f1f5f9; }
+        .stat-card { transition: transform 0.2s; }
+        .stat-card:hover { transform: translateY(-2px); }
+        .input-focus:focus { outline: none; box-shadow: 0 0 0 2px #0284c7; }
+        .toast { animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
-<body class="antialiased overflow-hidden">
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen">
 
-    <!-- AUTH MODULE -->
-    <div id="authSection" class="min-h-screen flex items-center justify-center p-6 bg-slate-100">
-        <div class="max-w-md w-full glass p-10 shadow-xl">
+    <!-- ========== AUTH SECTION ========== -->
+    <div id="authSection" class="min-h-screen flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 p-8">
             <div class="text-center mb-8">
-                <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 text-white font-bold text-2xl shadow-lg">CI</div>
-                <h1 class="text-2xl font-bold tracking-tight" id="authTitle">Core Inventory</h1>
-                <p class="text-slate-500 text-sm mt-1 italic" id="authSubtitle">Digitizing Stock Operations</p>
+                <div class="w-14 h-14 bg-sky-600 rounded-xl flex items-center justify-center mx-auto mb-4 text-white font-bold text-xl">CI</div>
+                <h1 class="text-2xl font-bold text-slate-800">CoreInventory</h1>
+                <p class="text-slate-500 text-sm mt-1">Digitizing Stock Operations</p>
             </div>
 
-            <div id="authForm" class="space-y-4">
-                <div id="nameContainer" class="hidden">
-                    <input id="authName" type="text" placeholder="Full Name" class="w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition text-sm">
+            <div id="authForm">
+                <div id="nameRow" class="hidden mb-4">
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Full Name</label>
+                    <input id="authName" type="text" placeholder="John Doe" class="w-full px-4 py-3 border border-slate-200 rounded-lg input-focus transition text-sm">
                 </div>
-                <input id="authEmail" type="email" placeholder="Email Address" class="w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition text-sm">
-                <div id="passwordContainer">
-                    <input id="authPassword" type="password" placeholder="Password" class="w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition text-sm">
+                <div class="mb-4">
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Email</label>
+                    <input id="authEmail" type="email" placeholder="you@company.com" class="w-full px-4 py-3 border border-slate-200 rounded-lg input-focus transition text-sm">
                 </div>
-                <button onclick="handleAuth()" id="authBtn" class="w-full btn-primary py-4 rounded-xl shadow-lg">Login to Portal</button>
-                <div class="flex flex-col gap-2 pt-2 text-center">
-                    <button onclick="toggleAuthMode()" id="toggleBtn" class="text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors">Request Account</button>
-                    <button onclick="showForgotPassword()" id="forgotBtn" class="text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors">Forgot Password?</button>
+                <div class="mb-4">
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Password</label>
+                    <input id="authPassword" type="password" placeholder="••••••••" class="w-full px-4 py-3 border border-slate-200 rounded-lg input-focus transition text-sm">
+                </div>
+                <button id="authBtn" onclick="handleAuth()" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3 rounded-lg transition">
+                    Login to Portal
+                </button>
+                <div class="mt-4 flex justify-between text-xs">
+                    <button onclick="toggleAuthMode()" id="toggleAuth" class="text-slate-500 hover:text-sky-600 font-medium">Create account</button>
+                    <button onclick="showForgotPassword()" class="text-slate-500 hover:text-sky-600 font-medium">Forgot password?</button>
                 </div>
             </div>
 
-            <div id="otpForm" class="hidden space-y-4">
+            <div id="otpForm" class="hidden">
                 <div id="otpStep1">
-                    <p class="text-xs text-slate-500 mb-4">Enter your email to receive a password reset code.</p>
-                    <input id="otpEmail" type="email" placeholder="Confirm Email" class="w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition text-sm">
-                    <button onclick="requestOTP()" class="w-full btn-primary py-4 rounded-xl mt-4">Send OTP</button>
+                    <p class="text-sm text-slate-600 mb-4">Enter your email to receive a reset code.</p>
+                    <input id="otpEmail" type="email" placeholder="Email" class="w-full px-4 py-3 border border-slate-200 rounded-lg mb-4 input-focus text-sm">
+                    <button onclick="requestOTP()" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3 rounded-lg">Send OTP</button>
                 </div>
                 <div id="otpStep2" class="hidden space-y-4">
-                    <p class="text-xs text-slate-500 mb-2">Check server console for mock code.</p>
-                    <input id="otpCode" type="text" placeholder="6-Digit Code" class="w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition text-sm font-mono tracking-widest text-center">
-                    <input id="otpNewPassword" type="password" placeholder="New Password" class="w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition text-sm">
-                    <button onclick="resetPassword()" class="w-full btn-primary py-4 rounded-xl">Update Password</button>
+                    <p class="text-xs text-amber-600 bg-amber-50 p-2 rounded">Check server console for OTP (mock)</p>
+                    <input id="otpCode" type="text" placeholder="6-digit code" maxlength="6" class="w-full px-4 py-3 border rounded-lg input-focus text-center font-mono text-lg">
+                    <input id="otpNewPass" type="password" placeholder="New password" class="w-full px-4 py-3 border rounded-lg input-focus text-sm">
+                    <button onclick="resetPassword()" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3 rounded-lg">Reset Password</button>
                 </div>
-                <button onclick="backToLogin()" class="w-full text-xs font-semibold text-slate-500 hover:text-blue-600 pt-2 uppercase tracking-widest">Cancel</button>
+                <button onclick="backToLogin()" class="w-full mt-4 text-xs text-slate-500 hover:text-sky-600 font-medium">← Back to login</button>
             </div>
         </div>
     </div>
 
-    <!-- MAIN APP INTERFACE -->
-    <div id="appSection" class="hidden h-screen flex">
-        <aside class="w-64 bg-white border-r flex flex-col shrink-0">
-            <div class="p-6 border-b">
-                <h2 class="text-xl font-bold text-blue-600 flex items-center gap-2">CI CoreInv</h2>
+    <!-- ========== MAIN APP ========== -->
+    <div id="appSection" class="hidden flex h-screen overflow-hidden">
+        <aside class="w-64 bg-white border-r border-slate-200 flex flex-col shrink-0">
+            <div class="p-5 border-b border-slate-200">
+                <h2 class="text-lg font-bold text-sky-600">CoreInventory</h2>
             </div>
-            <nav class="flex-grow py-6 space-y-1">
-                <button onclick="switchView('dashboard')" id="nav-dashboard" class="nav-link active w-full flex items-center gap-3 px-6 py-3 text-sm font-semibold">Dashboard</button>
-                <div class="px-6 py-2 text-[10px] uppercase font-bold text-slate-400 tracking-wider">Inventory</div>
-                <button onclick="switchView('products')" id="nav-products" class="nav-link w-full flex items-center gap-3 px-6 py-3 text-sm font-semibold text-slate-600">Master Products</button>
-                <div class="px-6 py-2 text-[10px] uppercase font-bold text-slate-400 tracking-wider mt-4">Operations</div>
-                <button onclick="switchView('receipts')" id="nav-receipts" class="nav-link w-full flex items-center gap-3 px-6 py-3 text-sm font-semibold text-slate-600">Receipts (Incoming)</button>
-                <button onclick="switchView('delivery')" id="nav-delivery" class="nav-link w-full flex items-center gap-3 px-6 py-3 text-sm font-semibold text-slate-600">Delivery (Outgoing)</button>
-                <button onclick="switchView('transfers')" id="nav-transfers" class="nav-link w-full flex items-center gap-3 px-6 py-3 text-sm font-semibold text-slate-600">Internal Transfers</button>
-                <div class="px-6 py-2 text-[10px] uppercase font-bold text-slate-400 tracking-wider mt-4">History</div>
-                <button onclick="switchView('ledger')" id="nav-ledger" class="nav-link w-full flex items-center gap-3 px-6 py-3 text-sm font-semibold text-slate-600">Stock Ledger</button>
+            <nav class="flex-1 overflow-y-auto py-4 space-y-0.5">
+                <a href="#" onclick="switchView('dashboard'); return false;" id="nav-dashboard" class="nav-link active flex items-center gap-3 px-5 py-2.5 text-sm font-medium">
+                    Dashboard
+                </a>
+                <div class="px-5 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Inventory</div>
+                <a href="#" onclick="switchView('products'); return false;" id="nav-products" class="nav-link flex items-center gap-3 px-5 py-2.5 text-sm font-medium text-slate-600">Products</a>
+                <div class="px-5 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Operations</div>
+                <a href="#" onclick="switchView('receipts'); return false;" id="nav-receipts" class="nav-link flex items-center gap-3 px-5 py-2.5 text-sm font-medium text-slate-600">Receipts</a>
+                <a href="#" onclick="switchView('delivery'); return false;" id="nav-delivery" class="nav-link flex items-center gap-3 px-5 py-2.5 text-sm font-medium text-slate-600">Delivery</a>
+                <a href="#" onclick="switchView('transfers'); return false;" id="nav-transfers" class="nav-link flex items-center gap-3 px-5 py-2.5 text-sm font-medium text-slate-600">Transfers</a>
+                <a href="#" onclick="switchView('adjustments'); return false;" id="nav-adjustments" class="nav-link flex items-center gap-3 px-5 py-2.5 text-sm font-medium text-slate-600">Adjustments</a>
+                <div class="px-5 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">History</div>
+                <a href="#" onclick="switchView('ledger'); return false;" id="nav-ledger" class="nav-link flex items-center gap-3 px-5 py-2.5 text-sm font-medium text-slate-600">Move History</a>
+                <div class="px-5 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Settings</div>
+                <a href="#" onclick="switchView('warehouses'); return false;" id="nav-warehouses" class="nav-link flex items-center gap-3 px-5 py-2.5 text-sm font-medium text-slate-600">Warehouses</a>
             </nav>
-            <div class="p-6 border-t bg-slate-50">
-                <div class="flex items-center gap-3 mb-4">
-                    <div class="w-8 h-8 bg-blue-100 text-blue-600 flex items-center justify-center rounded-full text-xs font-bold" id="userInitial">U</div>
-                    <div class="truncate">
-                        <p class="text-xs font-bold truncate" id="userNameLabel">User</p>
-                        <p class="text-[9px] text-slate-500">Inventory Manager</p>
+            <div class="p-4 border-t border-slate-200 bg-slate-50">
+                <div class="flex items-center gap-3 mb-3">
+                    <div id="userAvatar" class="w-9 h-9 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-sm font-bold">U</div>
+                    <div class="min-w-0">
+                        <p id="userName" class="text-sm font-semibold truncate">User</p>
+                        <p class="text-[10px] text-slate-500">Inventory Manager</p>
                     </div>
                 </div>
-                <button onclick="location.reload()" class="w-full py-2 bg-white border text-slate-600 hover:text-red-500 rounded-lg text-xs font-bold transition-all">Sign Out</button>
+                <button onclick="logout()" class="w-full py-2 text-xs font-semibold text-slate-600 hover:text-red-600 bg-white border border-slate-200 rounded-lg transition">Logout</button>
             </div>
         </aside>
 
-        <main class="flex-grow flex flex-col overflow-hidden">
-            <header class="h-16 px-8 border-b bg-white flex justify-between items-center shrink-0 shadow-sm">
-                <h3 class="text-lg font-bold" id="viewTitle">Dashboard</h3>
-                <div class="flex items-center gap-2 text-[10px] font-bold text-slate-400">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span> SYNCED
-                </div>
+        <main class="flex-1 flex flex-col overflow-hidden bg-slate-50">
+            <header class="h-14 px-6 bg-white border-b border-slate-200 flex items-center justify-between shrink-0">
+                <h1 id="viewTitle" class="text-lg font-bold text-slate-800">Dashboard</h1>
+                <span class="flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Synced
+                </span>
             </header>
 
-            <div id="moduleContent" class="flex-grow overflow-y-auto p-8 custom-scrollbar">
-                
+            <div id="contentArea" class="flex-1 overflow-y-auto p-6">
                 <!-- DASHBOARD -->
-                <div id="view-dashboard" class="space-y-8">
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                        <div class="stat-card"><p class="text-[10px] font-bold text-slate-400 uppercase">Total Stock</p><p class="text-3xl font-bold mt-2" id="statStock">0</p></div>
-                        <div class="stat-card"><p class="text-[10px] font-bold text-slate-400 uppercase">Low Stock</p><p class="text-3xl font-bold mt-2 text-red-500" id="statLow">0</p></div>
-                        <div class="stat-card"><p class="text-[10px] font-bold text-slate-400 uppercase">Pending Receipts</p><p class="text-3xl font-bold mt-2 text-blue-600" id="statReceipts">0</p></div>
-                        <div class="stat-card"><p class="text-[10px] font-bold text-slate-400 uppercase">Deliveries</p><p class="text-3xl font-bold mt-2 text-orange-600" id="statDelivery">0</p></div>
+                <div id="view-dashboard" class="space-y-6">
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                        <div class="stat-card bg-white rounded-xl border border-slate-200 p-5">
+                            <p class="text-xs font-semibold text-slate-500 uppercase">Total Products</p>
+                            <p id="statProducts" class="text-2xl font-bold mt-1">0</p>
+                        </div>
+                        <div class="stat-card bg-white rounded-xl border border-slate-200 p-5">
+                            <p class="text-xs font-semibold text-slate-500 uppercase">Total Stock</p>
+                            <p id="statStock" class="text-2xl font-bold mt-1">0</p>
+                        </div>
+                        <div class="stat-card bg-white rounded-xl border border-red-100 p-5">
+                            <p class="text-xs font-semibold text-red-600 uppercase">Low Stock</p>
+                            <p id="statLow" class="text-2xl font-bold mt-1 text-red-600">0</p>
+                        </div>
+                        <div class="stat-card bg-white rounded-xl border border-sky-100 p-5">
+                            <p class="text-xs font-semibold text-sky-600 uppercase">Pending Receipts</p>
+                            <p id="statReceipts" class="text-2xl font-bold mt-1 text-sky-600">0</p>
+                        </div>
+                        <div class="stat-card bg-white rounded-xl border border-amber-100 p-5">
+                            <p class="text-xs font-semibold text-amber-600 uppercase">Pending Deliveries</p>
+                            <p id="statDeliveries" class="text-2xl font-bold mt-1 text-amber-600">0</p>
+                        </div>
                     </div>
-                    <div class="glass p-6">
-                        <h4 class="font-bold text-sm mb-4">Stock Distribution by Warehouse</h4>
-                        <div id="warehouseDist" class="space-y-4 text-xs"></div>
+                    <div class="bg-white rounded-xl border border-slate-200 p-6">
+                        <h3 class="font-semibold text-slate-800 mb-4">Stock by Location</h3>
+                        <div id="warehouseDist" class="space-y-3 text-sm"></div>
                     </div>
                 </div>
 
                 <!-- PRODUCTS -->
                 <div id="view-products" class="hidden space-y-6">
-                    <div class="glass p-6">
-                        <h4 class="font-bold text-sm mb-4">Create Product</h4>
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <input id="pName" placeholder="Product Name" class="p-3 bg-slate-50 border rounded-xl text-sm">
-                            <input id="pSku" placeholder="SKU Code" class="p-3 bg-slate-50 border rounded-xl text-sm uppercase">
-                            <select id="pUom" class="p-3 bg-slate-50 border rounded-xl text-sm">
-                                <option value="Units">Units</option><option value="kg">kg</option><option value="L">Liters</option>
+                    <div class="bg-white rounded-xl border border-slate-200 p-6">
+                        <h3 class="font-semibold mb-4">Create Product</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-6 gap-4">
+                            <input id="pName" placeholder="Name" class="px-4 py-2.5 border rounded-lg text-sm">
+                            <input id="pSku" placeholder="SKU" class="px-4 py-2.5 border rounded-lg text-sm font-mono uppercase">
+                            <input id="pCategory" placeholder="Category" class="px-4 py-2.5 border rounded-lg text-sm">
+                            <select id="pUom" class="px-4 py-2.5 border rounded-lg text-sm">
+                                <option value="Units">Units</option>
+                                <option value="kg">kg</option>
+                                <option value="L">Liters</option>
+                                <option value="m">Meters</option>
                             </select>
-                            <button onclick="createProduct()" class="bg-blue-600 text-white p-3 rounded-xl font-bold text-xs">Save Product</button>
+                            <input id="pMinQty" type="number" placeholder="Min qty" value="5" class="px-4 py-2.5 border rounded-lg text-sm">
+                            <button onclick="createProduct()" class="bg-sky-600 hover:bg-sky-700 text-white font-semibold py-2.5 rounded-lg text-sm">Add Product</button>
                         </div>
                     </div>
-                    <div class="glass overflow-hidden"><table class="w-full text-left text-xs"><thead class="bg-slate-50 border-b"><tr><th class="px-6 py-4">SKU</th><th class="px-6 py-4">Name</th><th class="px-6 py-4">Stock</th><th class="px-6 py-4">Locations</th></tr></thead><tbody id="productTable"></tbody></table></div>
+                    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                        <table class="w-full text-sm">
+                            <thead class="bg-slate-50 border-b">
+                                <tr>
+                                    <th class="px-4 py-3 text-left font-semibold text-slate-600">SKU</th>
+                                    <th class="px-4 py-3 text-left font-semibold text-slate-600">Name</th>
+                                    <th class="px-4 py-3 text-left font-semibold text-slate-600">Category</th>
+                                    <th class="px-4 py-3 text-left font-semibold text-slate-600">Stock</th>
+                                    <th class="px-4 py-3 text-left font-semibold text-slate-600">Locations</th>
+                                </tr>
+                            </thead>
+                            <tbody id="productTable"></tbody>
+                        </table>
+                    </div>
                 </div>
 
                 <!-- RECEIPTS -->
                 <div id="view-receipts" class="hidden space-y-6">
-                    <div class="glass p-6">
-                        <h4 class="font-bold text-sm mb-4">Incoming Receipt</h4>
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <select id="opProd" class="p-3 bg-slate-50 border rounded-xl text-sm"></select>
-                            <input id="opQty" type="number" placeholder="Qty" class="p-3 bg-slate-50 border rounded-xl text-sm">
-                            <select id="opToLoc" class="p-3 bg-slate-50 border rounded-xl text-sm"><option value="Main Warehouse">Main Warehouse</option><option value="Rack A">Rack A</option></select>
-                            <button onclick="processOp('Receipt')" class="bg-emerald-600 text-white p-3 rounded-xl font-bold text-xs">Validate</button>
+                    <div class="bg-white rounded-xl border border-slate-200 p-6">
+                        <h3 class="font-semibold mb-4">Incoming Receipt</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                            <input id="receiptSupplier" placeholder="Supplier" class="px-4 py-2.5 border rounded-lg text-sm">
+                            <select id="receiptProduct" class="px-4 py-2.5 border rounded-lg text-sm"></select>
+                            <input id="receiptQty" type="number" placeholder="Qty" class="px-4 py-2.5 border rounded-lg text-sm">
+                            <select id="receiptTo" class="px-4 py-2.5 border rounded-lg text-sm"></select>
+                            <button onclick="processReceipt()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg text-sm">Validate</button>
                         </div>
                     </div>
                 </div>
 
                 <!-- DELIVERY -->
                 <div id="view-delivery" class="hidden space-y-6">
-                    <div class="glass p-6">
-                        <h4 class="font-bold text-sm mb-4">Delivery Order</h4>
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <select id="delProd" class="p-3 bg-slate-50 border rounded-xl text-sm"></select>
-                            <input id="delQty" type="number" placeholder="Qty" class="p-3 bg-slate-50 border rounded-xl text-sm">
-                            <select id="delFromLoc" class="p-3 bg-slate-50 border rounded-xl text-sm"><option value="Main Warehouse">Main Warehouse</option></select>
-                            <button onclick="processOp('Delivery')" class="bg-orange-600 text-white p-3 rounded-xl font-bold text-xs">Validate</button>
+                    <div class="bg-white rounded-xl border border-slate-200 p-6">
+                        <h3 class="font-semibold mb-4">Delivery Order</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                            <input id="deliveryCustomer" placeholder="Customer" class="px-4 py-2.5 border rounded-lg text-sm">
+                            <select id="deliveryProduct" class="px-4 py-2.5 border rounded-lg text-sm"></select>
+                            <input id="deliveryQty" type="number" placeholder="Qty" class="px-4 py-2.5 border rounded-lg text-sm">
+                            <select id="deliveryFrom" class="px-4 py-2.5 border rounded-lg text-sm"></select>
+                            <button onclick="processDelivery()" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2.5 rounded-lg text-sm">Validate</button>
                         </div>
                     </div>
                 </div>
 
                 <!-- TRANSFERS -->
                 <div id="view-transfers" class="hidden space-y-6">
-                    <div class="glass p-6">
-                        <h4 class="font-bold text-sm mb-4">Internal Transfer</h4>
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <select id="trnProd" class="p-3 bg-slate-50 border rounded-xl text-sm"></select>
-                            <input id="trnQty" type="number" placeholder="Qty" class="p-3 bg-slate-50 border rounded-xl text-sm">
-                            <select id="trnFrom" class="p-3 bg-slate-50 border rounded-xl text-sm"><option value="Main Warehouse">Main Warehouse</option></select>
-                            <select id="trnTo" class="p-3 bg-slate-50 border rounded-xl text-sm"><option value="Production Floor">Production Floor</option><option value="Rack B">Rack B</option></select>
-                            <button onclick="processOp('Transfer')" class="bg-blue-600 text-white p-3 rounded-xl font-bold text-xs col-span-full">Confirm Move</button>
+                    <div class="bg-white rounded-xl border border-slate-200 p-6">
+                        <h3 class="font-semibold mb-4">Internal Transfer</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                            <select id="transferProduct" class="px-4 py-2.5 border rounded-lg text-sm"></select>
+                            <input id="transferQty" type="number" placeholder="Qty" class="px-4 py-2.5 border rounded-lg text-sm">
+                            <select id="transferFrom" class="px-4 py-2.5 border rounded-lg text-sm"></select>
+                            <select id="transferTo" class="px-4 py-2.5 border rounded-lg text-sm"></select>
+                            <button onclick="processTransfer()" class="bg-sky-600 hover:bg-sky-700 text-white font-semibold py-2.5 rounded-lg text-sm col-span-2 md:col-span-1">Move</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ADJUSTMENTS -->
+                <div id="view-adjustments" class="hidden space-y-6">
+                    <div class="bg-white rounded-xl border border-slate-200 p-6">
+                        <h3 class="font-semibold mb-4">Stock Adjustment</h3>
+                        <p class="text-sm text-slate-600 mb-4">Enter the physical count to reconcile with records.</p>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <select id="adjProduct" class="px-4 py-2.5 border rounded-lg text-sm"></select>
+                            <select id="adjLocation" class="px-4 py-2.5 border rounded-lg text-sm"></select>
+                            <input id="adjQty" type="number" placeholder="Counted qty" class="px-4 py-2.5 border rounded-lg text-sm">
+                            <button onclick="processAdjustment()" class="bg-violet-600 hover:bg-violet-700 text-white font-semibold py-2.5 rounded-lg text-sm">Apply</button>
                         </div>
                     </div>
                 </div>
 
                 <!-- LEDGER -->
-                <div id="view-ledger" class="hidden space-y-6">
-                    <div class="glass overflow-hidden"><table class="w-full text-left text-xs font-mono"><thead class="bg-slate-50 border-b"><tr><th class="px-6 py-4">Time</th><th class="px-6 py-4">Action</th><th class="px-6 py-4">Product</th><th class="px-6 py-4">Qty</th><th class="px-6 py-4">Route</th></tr></thead><tbody id="ledgerTable"></tbody></table></div>
+                <div id="view-ledger" class="hidden">
+                    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                        <table class="w-full text-sm">
+                            <thead class="bg-slate-50 border-b">
+                                <tr>
+                                    <th class="px-4 py-3 text-left font-semibold text-slate-600">Time</th>
+                                    <th class="px-4 py-3 text-left font-semibold text-slate-600">Type</th>
+                                    <th class="px-4 py-3 text-left font-semibold text-slate-600">Product</th>
+                                    <th class="px-4 py-3 text-left font-semibold text-slate-600">Qty</th>
+                                    <th class="px-4 py-3 text-left font-semibold text-slate-600">Route</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ledgerTable"></tbody>
+                        </table>
+                    </div>
                 </div>
 
+                <!-- WAREHOUSES -->
+                <div id="view-warehouses" class="hidden space-y-6">
+                    <div class="bg-white rounded-xl border border-slate-200 p-6">
+                        <h3 class="font-semibold mb-4">Add Warehouse</h3>
+                        <div class="flex gap-3">
+                            <input id="warehouseName" placeholder="Warehouse name" class="flex-1 px-4 py-2.5 border rounded-lg text-sm">
+                            <button onclick="addWarehouse()" class="bg-sky-600 hover:bg-sky-700 text-white font-semibold px-4 py-2.5 rounded-lg text-sm">Add</button>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl border border-slate-200 p-6">
+                        <h3 class="font-semibold mb-4">Warehouses</h3>
+                        <ul id="warehouseList" class="space-y-2 text-sm"></ul>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
 
-    <!-- Toast Alert -->
-    <div id="msgBox" class="fixed bottom-8 left-1/2 -translate-x-1/2 opacity-0 transition-opacity z-[200] pointer-events-none"><div class="bg-slate-900 text-white px-6 py-3 rounded-full font-bold text-xs shadow-2xl"><span id="msgContent">...</span></div></div>
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-lg text-sm font-medium shadow-lg opacity-0 pointer-events-none transition-opacity z-50 toast"></div>
 
     <script>
-        const API_URL = 'http://127.0.0.1:8000';
-        let userData = { name: '', email: '' };
+        const API = (window.location.origin && window.location.origin !== 'null' && window.location.protocol !== 'file:')
+            ? window.location.origin
+            : 'http://localhost:8000';
+        let user = { name: '', email: '' };
         let currentView = 'dashboard';
 
-        // AUTH UI
-        function toggleAuthMode() {
-            const isLogin = document.getElementById('authBtn').innerText === 'Login to Portal';
-            document.getElementById('nameContainer').classList.toggle('hidden', !isLogin);
-            document.getElementById('authBtn').innerText = isLogin ? 'Create Account' : 'Login to Portal';
+        function api(path, opts = {}) {
+            return fetch(`${API}${path.startsWith('/') ? path : '/api/' + path}`, {
+                headers: { 'Content-Type': 'application/json', ...opts.headers },
+                ...opts,
+            });
         }
-        function showForgotPassword() { document.getElementById('authForm').classList.add('hidden'); document.getElementById('otpForm').classList.remove('hidden'); }
-        function backToLogin() { document.getElementById('authForm').classList.remove('hidden'); document.getElementById('otpForm').classList.add('hidden'); }
 
-        // AUTH ACTIONS
+        function toast(msg, type = 'info') {
+            const el = document.getElementById('toast');
+            el.textContent = msg;
+            el.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-lg text-sm font-medium shadow-lg z-50 toast ' +
+                (type === 'err' ? 'bg-red-600' : 'bg-slate-800') + ' text-white';
+            el.style.opacity = '1';
+            setTimeout(() => el.style.opacity = '0', 3000);
+        }
+
+        // --- Auth ---
+        function toggleAuthMode() {
+            const show = document.getElementById('authBtn').textContent === 'Login to Portal';
+            document.getElementById('nameRow').classList.toggle('hidden', !show);
+            document.getElementById('authBtn').textContent = show ? 'Create Account' : 'Login to Portal';
+            document.getElementById('toggleAuth').textContent = show ? 'Already have account?' : 'Create account';
+        }
+
+        function showForgotPassword() {
+            document.getElementById('authForm').classList.add('hidden');
+            document.getElementById('otpForm').classList.remove('hidden');
+            document.getElementById('otpStep1').classList.remove('hidden');
+            document.getElementById('otpStep2').classList.add('hidden');
+        }
+
+        function backToLogin() {
+            document.getElementById('otpForm').classList.add('hidden');
+            document.getElementById('authForm').classList.remove('hidden');
+        }
+
         async function handleAuth() {
-            const isReg = !document.getElementById('nameContainer').classList.contains('hidden');
-            const payload = { name: document.getElementById('authName').value, email: document.getElementById('authEmail').value, password: document.getElementById('authPassword').value };
+            const isReg = document.getElementById('authBtn').textContent === 'Create Account';
+            const payload = {
+                email: document.getElementById('authEmail').value.trim(),
+                password: document.getElementById('authPassword').value,
+                name: document.getElementById('authName')?.value?.trim(),
+            };
+            if (!payload.email || !payload.password) {
+                toast('Email and password required');
+                return;
+            }
             try {
-                const res = await fetch(`${API_URL}/${isReg ? 'register' : 'login'}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-                const data = await res.json(); if(!res.ok) throw new Error(data.detail);
-                userData = { name: data.user_name, email: data.user_email };
-                document.getElementById('authSection').style.display = 'none';
+                const res = await api(isReg ? '/api/register' : '/api/login', {
+                    method: 'POST',
+                    body: JSON.stringify(payload),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Auth failed');
+                user = { name: data.user_name, email: data.user_email };
+                document.getElementById('authSection').classList.add('hidden');
                 document.getElementById('appSection').classList.remove('hidden');
-                document.getElementById('userNameLabel').innerText = userData.name;
-                document.getElementById('userInitial').innerText = userData.name[0];
-                refreshData(); setInterval(refreshData, 5000);
-            } catch(e) { showMsg(e.message); }
+                document.getElementById('userName').textContent = user.name;
+                document.getElementById('userAvatar').textContent = user.name[0].toUpperCase();
+                refreshAll();
+                setInterval(refreshAll, 8000);
+            } catch (e) {
+                toast(e.message, 'err');
+            }
         }
 
         async function requestOTP() {
-            const res = await fetch(`${API_URL}/request-otp`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ email: document.getElementById('otpEmail').value }) });
-            if(res.ok) { document.getElementById('otpStep1').classList.add('hidden'); document.getElementById('otpStep2').classList.remove('hidden'); showMsg("OTP Sent!"); }
+            const email = document.getElementById('otpEmail').value.trim();
+            const res = await api('/api/request-otp', { method: 'POST', body: JSON.stringify({ email }) });
+            const data = await res.json();
+            if (!res.ok) {
+                toast(data.detail || 'Failed', 'err');
+                return;
+            }
+            document.getElementById('otpStep1').classList.add('hidden');
+            document.getElementById('otpStep2').classList.remove('hidden');
+            toast('OTP sent. Check server console.');
         }
 
         async function resetPassword() {
-            const payload = { email: document.getElementById('otpEmail').value, otp: document.getElementById('otpCode').value, new_password: document.getElementById('otpNewPassword').value };
-            const res = await fetch(`${API_URL}/reset-password`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-            if(res.ok) { showMsg("Success!"); backToLogin(); }
+            const payload = {
+                email: document.getElementById('otpEmail').value.trim(),
+                otp: document.getElementById('otpCode').value,
+                new_password: document.getElementById('otpNewPass').value,
+            };
+            const res = await api('/api/reset-password', { method: 'POST', body: JSON.stringify(payload) });
+            const data = await res.json();
+            if (!res.ok) {
+                toast(data.detail || 'Failed', 'err');
+                return;
+            }
+            toast('Password reset!');
+            backToLogin();
         }
 
-        // NAV
+        function logout() {
+            user = { name: '', email: '' };
+            document.getElementById('authSection').classList.remove('hidden');
+            document.getElementById('appSection').classList.add('hidden');
+        }
+
+        // --- Navigation ---
         function switchView(view) {
-            document.getElementById(`view-${currentView}`).classList.add('hidden');
-            document.getElementById(`nav-${currentView}`).classList.remove('active');
-            currentView = view;
+            document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
             document.getElementById(`view-${view}`).classList.remove('hidden');
             document.getElementById(`nav-${view}`).classList.add('active');
-            document.getElementById('viewTitle').innerText = view.toUpperCase();
+            const titles = {
+                dashboard: 'Dashboard',
+                products: 'Products',
+                receipts: 'Receipts',
+                delivery: 'Delivery',
+                transfers: 'Transfers',
+                adjustments: 'Adjustments',
+                ledger: 'Move History',
+                warehouses: 'Warehouses',
+            };
+            document.getElementById('viewTitle').textContent = titles[view] || view;
+            currentView = view;
+            if (view === 'warehouses') loadWarehouses();
         }
 
-        // REFRESH
-        async function refreshData() {
+        // --- Data refresh ---
+        async function refreshAll() {
             try {
-                const stats = await (await fetch(`${API_URL}/stats`)).json();
-                document.getElementById('statStock').innerText = stats.total_stock;
-                document.getElementById('statLow').innerText = stats.low_stock;
-                document.getElementById('statReceipts').innerText = stats.pending_receipts;
-                document.getElementById('statDelivery').innerText = stats.pending_deliveries;
+                const [stats, prods, ledger, wh] = await Promise.all([
+                    api('/api/stats').then(r => r.json()),
+                    api('/api/products').then(r => r.json()),
+                    api('/api/ledger').then(r => r.json()),
+                    api('/api/warehouses').then(r => r.json()),
+                ]);
+                document.getElementById('statProducts').textContent = stats.total_products;
+                document.getElementById('statStock').textContent = stats.total_stock;
+                document.getElementById('statLow').textContent = stats.low_stock;
+                document.getElementById('statReceipts').textContent = stats.pending_receipts;
+                document.getElementById('statDeliveries').textContent = stats.pending_deliveries;
 
-                const prods = (await (await fetch(`${API_URL}/products`)).json()).products;
-                renderProducts(prods);
+                const products = prods.products || [];
+                const warehouses = wh.warehouses || [];
 
-                const ledger = (await (await fetch(`${API_URL}/ledger`)).json()).ledger;
-                renderLedger(ledger);
-            } catch(e) {}
+                let dist = {};
+                products.forEach(p => {
+                    Object.entries(p.locations || {}).forEach(([loc, qty]) => {
+                        dist[loc] = (dist[loc] || 0) + qty;
+                    });
+                });
+                document.getElementById('warehouseDist').innerHTML = Object.entries(dist).length
+                    ? Object.entries(dist).map(([loc, q]) => `<div class="flex justify-between"><span>${loc}</span><span class="font-semibold">${q}</span></div>`).join('')
+                    : '<p class="text-slate-500 text-sm">No stock data yet.</p>';
+
+                const prodOptions = products.map(p => `<option value="${p.id}">${p.name} (${p.sku})</option>`).join('');
+                ['receiptProduct', 'deliveryProduct', 'transferProduct', 'adjProduct'].forEach(id => {
+                    const sel = document.getElementById(id);
+                    if (sel) sel.innerHTML = '<option value="">Select product</option>' + prodOptions;
+                });
+
+                const whOptions = warehouses.map(w => `<option value="${w}">${w}</option>`).join('');
+                ['receiptTo', 'deliveryFrom', 'transferFrom', 'transferTo', 'adjLocation'].forEach(id => {
+                    const sel = document.getElementById(id);
+                    if (sel) sel.innerHTML = whOptions || '<option>Main Warehouse</option>';
+                });
+
+                document.getElementById('productTable').innerHTML = products.map(p => `
+                    <tr class="border-b hover:bg-slate-50">
+                        <td class="px-4 py-3 font-mono font-semibold text-sky-600">${p.sku}</td>
+                        <td class="px-4 py-3">${p.name}</td>
+                        <td class="px-4 py-3 text-slate-600">${p.category || '-'}</td>
+                        <td class="px-4 py-3 font-semibold">${p.total_qty} ${p.uom}</td>
+                        <td class="px-4 py-3 text-slate-500 text-xs">${Object.entries(p.locations || {}).map(([l, q]) => l + ': ' + q).join(', ') || '-'}</td>
+                    </tr>
+                `).join('') || '<tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">No products</td></tr>';
+
+                const items = (ledger.ledger || []).slice(0, 50);
+                document.getElementById('ledgerTable').innerHTML = items.map(l => `
+                    <tr class="border-b hover:bg-slate-50">
+                        <td class="px-4 py-3 text-slate-500 text-xs">${l.timestamp}</td>
+                        <td class="px-4 py-3 font-semibold uppercase">${l.type}</td>
+                        <td class="px-4 py-3">${l.product}</td>
+                        <td class="px-4 py-3">${l.qty} ${l.uom}</td>
+                        <td class="px-4 py-3 text-slate-600">${l.route}</td>
+                    </tr>
+                `).join('') || '<tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">No movements</td></tr>';
+            } catch (e) {}
         }
 
-        function renderProducts(prods) {
-            document.getElementById('productTable').innerHTML = prods.map(p => `<tr><td class="px-6 py-4 font-mono font-bold text-blue-600">${p.sku}</td><td class="px-6 py-4 font-bold">${p.name}</td><td class="px-6 py-4">${p.total_qty} ${p.uom}</td><td class="px-6 py-4">${Object.entries(p.locations).map(([l,q])=>`${l}:${q}`).join(', ')}</td></tr>`).join('');
-            ['opProd', 'delProd', 'trnProd'].forEach(id => { const s = document.getElementById(id); s.innerHTML = prods.map(p => `<option value="${p.id}">${p.name}</option>`).join(''); });
+        async function loadWarehouses() {
+            const r = await api('/api/warehouses');
+            const d = await r.json();
+            const list = d.warehouses || [];
+            document.getElementById('warehouseList').innerHTML = list.map(w => `<li class="flex items-center gap-2">• ${w}</li>`).join('') || '<li class="text-slate-500">No warehouses</li>';
         }
 
-        function renderLedger(items) {
-            document.getElementById('ledgerTable').innerHTML = items.map(l => `<tr><td class="px-6 py-4 opacity-50 text-[9px]">${l.timestamp}</td><td class="px-6 py-4 font-bold uppercase">${l.type}</td><td class="px-6 py-4 font-bold">${l.product}</td><td class="px-6 py-4">${l.qty}</td><td class="px-6 py-4 opacity-75">${l.route}</td></tr>`).join('');
-        }
-
+        // --- Product ---
         async function createProduct() {
-            const p = { name: document.getElementById('pName').value, sku: document.getElementById('pSku').value, category: 'General', uom: document.getElementById('pUom').value, initial_stock: 0 };
-            await fetch(`${API_URL}/products`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(p) });
-            refreshData();
+            const name = document.getElementById('pName').value.trim();
+            const sku = document.getElementById('pSku').value.trim().toUpperCase();
+            const category = document.getElementById('pCategory').value.trim() || 'General';
+            const uom = document.getElementById('pUom').value;
+            const min_qty = parseInt(document.getElementById('pMinQty').value) || 5;
+            if (!name || !sku) {
+                toast('Name and SKU required', 'err');
+                return;
+            }
+            try {
+                const res = await api('/api/products', {
+                    method: 'POST',
+                    body: JSON.stringify({ name, sku, category, uom, initial_stock: 0, min_qty }),
+                });
+                if (!res.ok) {
+                    const d = await res.json();
+                    throw new Error(d.detail || 'Failed');
+                }
+                toast('Product added');
+                document.getElementById('pName').value = '';
+                document.getElementById('pSku').value = '';
+                document.getElementById('pCategory').value = '';
+                refreshAll();
+            } catch (e) {
+                toast(e.message, 'err');
+            }
         }
 
-        async function processOp(type) {
-            let op = { type, status: 'Done' };
-            if(type === 'Receipt') { op.product_id = document.getElementById('opProd').value; op.qty = parseInt(document.getElementById('opQty').value); op.to_loc = document.getElementById('opToLoc').value; }
-            else if(type === 'Delivery') { op.product_id = document.getElementById('delProd').value; op.qty = parseInt(document.getElementById('delQty').value); op.from_loc = document.getElementById('delFromLoc').value; }
-            else if(type === 'Transfer') { op.product_id = document.getElementById('trnProd').value; op.qty = parseInt(document.getElementById('trnQty').value); op.from_loc = document.getElementById('trnFrom').value; op.to_loc = document.getElementById('trnTo').value; }
-            await fetch(`${API_URL}/operations`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(op) });
-            showMsg(`${type} Success!`); refreshData();
+        // --- Operations ---
+        async function processReceipt() {
+            const product_id = document.getElementById('receiptProduct').value;
+            const qty = parseInt(document.getElementById('receiptQty').value);
+            const to_loc = document.getElementById('receiptTo').value || 'Main Warehouse';
+            const partner = document.getElementById('receiptSupplier').value.trim() || 'Vendor';
+            if (!product_id || !qty || qty < 1) {
+                toast('Select product and enter qty', 'err');
+                return;
+            }
+            try {
+                const res = await api('/api/operations', {
+                    method: 'POST',
+                    body: JSON.stringify({ type: 'Receipt', product_id, qty, to_loc, partner }),
+                });
+                if (!res.ok) throw new Error((await res.json()).detail);
+                toast('Receipt validated');
+                refreshAll();
+            } catch (e) {
+                toast(e.message, 'err');
+            }
         }
 
-        function showMsg(m) { const b = document.getElementById('msgBox'); document.getElementById('msgContent').innerText = m; b.style.opacity = '1'; setTimeout(() => b.style.opacity = '0', 3000); }
+        async function processDelivery() {
+            const product_id = document.getElementById('deliveryProduct').value;
+            const qty = parseInt(document.getElementById('deliveryQty').value);
+            const from_loc = document.getElementById('deliveryFrom').value || 'Main Warehouse';
+            const partner = document.getElementById('deliveryCustomer').value.trim() || 'Customer';
+            if (!product_id || !qty || qty < 1) {
+                toast('Select product and enter qty', 'err');
+                return;
+            }
+            try {
+                const res = await api('/api/operations', {
+                    method: 'POST',
+                    body: JSON.stringify({ type: 'Delivery', product_id, qty, from_loc, partner }),
+                });
+                if (!res.ok) throw new Error((await res.json()).detail);
+                toast('Delivery validated');
+                refreshAll();
+            } catch (e) {
+                toast(e.message, 'err');
+            }
+        }
+
+        async function processTransfer() {
+            const product_id = document.getElementById('transferProduct').value;
+            const qty = parseInt(document.getElementById('transferQty').value);
+            const from_loc = document.getElementById('transferFrom').value;
+            const to_loc = document.getElementById('transferTo').value;
+            if (!product_id || !qty || qty < 1 || !from_loc || !to_loc || from_loc === to_loc) {
+                toast('Complete all fields and use different locations', 'err');
+                return;
+            }
+            try {
+                const res = await api('/api/operations', {
+                    method: 'POST',
+                    body: JSON.stringify({ type: 'Transfer', product_id, qty, from_loc, to_loc }),
+                });
+                if (!res.ok) throw new Error((await res.json()).detail);
+                toast('Transfer done');
+                refreshAll();
+            } catch (e) {
+                toast(e.message, 'err');
+            }
+        }
+
+        async function processAdjustment() {
+            const product_id = document.getElementById('adjProduct').value;
+            const qty = parseInt(document.getElementById('adjQty').value);
+            const to_loc = document.getElementById('adjLocation').value || 'Main Warehouse';
+            if (!product_id || isNaN(qty) || qty < 0) {
+                toast('Select product and enter counted qty', 'err');
+                return;
+            }
+            try {
+                const res = await api('/api/operations', {
+                    method: 'POST',
+                    body: JSON.stringify({ type: 'Adjustment', product_id, qty, to_loc }),
+                });
+                if (!res.ok) throw new Error((await res.json()).detail);
+                toast('Adjustment applied');
+                refreshAll();
+            } catch (e) {
+                toast(e.message, 'err');
+            }
+        }
+
+        async function addWarehouse() {
+            const name = document.getElementById('warehouseName').value.trim();
+            if (!name) {
+                toast('Enter warehouse name', 'err');
+                return;
+            }
+            try {
+                const res = await api('/api/warehouses', { method: 'POST', body: JSON.stringify({ name }) });
+                if (!res.ok) throw new Error((await res.json()).detail);
+                toast('Warehouse added');
+                document.getElementById('warehouseName').value = '';
+                loadWarehouses();
+                refreshAll();
+            } catch (e) {
+                toast(e.message, 'err');
+            }
+        }
     </script>
 </body>
 </html>
