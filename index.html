@@ -1,204 +1,736 @@
-<script>
-const API = (window.location.origin && window.location.origin !== 'null' && window.location.protocol !== 'file:')
-    ? window.location.origin
-    : 'http://localhost:8000';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Core Inventory</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'DM Sans', sans-serif; }
+        .nav-item.active { border-bottom: 2px solid #0284c7; color: #0284c7; }
+        .move-in { background-color: #dcfce7; }
+        .move-out { background-color: #fee2e2; }
+        .move-transfer { background-color: #dbeafe; }
+        .move-adjustment { background-color: #f3e8ff; }
+        .toast { animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen">
 
-let user = { name: '', email: '', login_id: '' };
-let recDraftProducts = [];
-let delDraftProducts = [];
-let editReceiptId = null;
-let editDeliveryId = null;
-let refreshTimer = null;
+    <!-- LOGIN -->
+    <div id="authSection" class="min-h-screen flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-white rounded-2xl shadow-xl border p-8">
+            <div class="text-center mb-8">
+                <div class="w-14 h-14 bg-sky-600 rounded-xl flex items-center justify-center mx-auto mb-4 text-white font-bold text-xl">CI</div>
+                <h1 class="text-2xl font-bold">Core Inventory</h1>
+            </div>
+            <div id="loginForm">
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Login Id</label>
+                <input id="loginId" type="text" placeholder="6-12 characters" class="w-full px-4 py-3 border rounded-lg mb-4 text-sm">
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Password</label>
+                <input id="loginPass" type="password" placeholder="Password" class="w-full px-4 py-3 border rounded-lg mb-4 text-sm">
+                <button onclick="handleLogin()" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3 rounded-lg">SIGN IN</button>
+                <div class="mt-4 flex justify-center gap-2 text-xs">
+                    <button onclick="showForgotPassword()" class="text-slate-500 hover:text-sky-600">Forget Password ?</button>
+                    <span>|</span>
+                    <button onclick="showSignup()" class="text-slate-500 hover:text-sky-600">Sign Up</button>
+                </div>
+            </div>
+            <div id="signupForm" class="hidden">
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Enter Login Id (6-12 chars, unique)</label>
+                <input id="suLoginId" type="text" class="w-full px-4 py-2 border rounded-lg mb-3 text-sm">
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Enter Email Id (unique)</label>
+                <input id="suEmail" type="email" class="w-full px-4 py-2 border rounded-lg mb-3 text-sm">
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Enter Password (min 8, upper+lower+special)</label>
+                <input id="suPass" type="password" class="w-full px-4 py-2 border rounded-lg mb-3 text-sm">
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Re-Enter Password</label>
+                <input id="suConfirm" type="password" class="w-full px-4 py-2 border rounded-lg mb-4 text-sm">
+                <button onclick="handleSignup()" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3 rounded-lg">SIGN UP</button>
+                <button onclick="showLogin()" class="w-full mt-2 text-sm text-slate-500 hover:text-sky-600">← Back to Login</button>
+            </div>
+            <div id="forgotForm" class="hidden">
+                <p class="text-sm text-slate-600 mb-4">Enter email to receive reset code.</p>
+                <input id="forgotEmail" type="email" placeholder="Email" class="w-full px-4 py-3 border rounded-lg mb-4 text-sm">
+                <button onclick="requestOTP()" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3 rounded-lg">Send OTP</button>
+                <div id="otpStep2" class="hidden mt-4 space-y-3">
+                    <input id="otpCode" type="text" placeholder="6-digit code" maxlength="6" class="w-full px-4 py-2 border rounded-lg text-center font-mono">
+                    <input id="otpNewPass" type="password" placeholder="New password" class="w-full px-4 py-2 border rounded-lg text-sm">
+                    <button onclick="resetPassword()" class="w-full bg-sky-600 text-white py-2 rounded-lg text-sm font-semibold">Reset</button>
+                </div>
+                <button onclick="showLogin()" class="w-full mt-4 text-xs text-slate-500">← Back</button>
+            </div>
+        </div>
+    </div>
 
-function api(path, opts = {}) {
-    const url = path.startsWith('/api') ? path : '/api/' + path.replace(/^\/+/, '');
-    return fetch(API + url, {
-        headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
-        ...opts
-    });
-}
+    <!-- MAIN APP -->
+    <div id="appSection" class="hidden flex flex-col h-screen">
+        <header class="bg-white border-b px-6 py-3 flex items-center justify-between shrink-0">
+            <nav class="flex gap-6 text-sm font-medium">
+                <a href="#" onclick="switchView('dashboard'); return false;" id="nav-dashboard" class="nav-item active">Dashboard</a>
+                <a href="#" onclick="switchView('operations'); return false;" id="nav-operations" class="nav-item text-slate-600 hover:text-slate-800">Operations</a>
+                <a href="#" onclick="switchView('products'); return false;" id="nav-products" class="nav-item text-slate-600 hover:text-slate-800">Products</a>
+                <a href="#" onclick="switchView('stock'); return false;" id="nav-stock" class="nav-item text-slate-600 hover:text-slate-800">Stock</a>
+                <a href="#" onclick="switchView('moves'); return false;" id="nav-moves" class="nav-item text-slate-600 hover:text-slate-800">Move History</a>
+                <a href="#" onclick="switchView('settings'); return false;" id="nav-settings" class="nav-item text-slate-600 hover:text-slate-800">Settings</a>
+            </nav>
+            <div class="flex items-center gap-3">
+                <span id="searchIcon" class="cursor-pointer text-slate-500">🔍</span>
+                <div id="userBadge" class="w-8 h-8 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-xs font-bold" id="userAvatar">U</div>
+                <button onclick="handleSignOut()" class="text-xs text-slate-500 hover:text-red-600 font-medium">Sign Out</button>
+            </div>
+        </header>
 
-function toast(msg, type='info'){
-    const el = document.getElementById('toast');
-    el.textContent = msg;
-    el.className =
-        'fixed bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-lg text-sm font-medium shadow-lg z-50 toast ' +
-        (type === 'err' ? 'bg-red-600' : 'bg-slate-800') + ' text-white';
+        <main class="flex-1 overflow-y-auto p-6">
+            <!-- DASHBOARD -->
+            <div id="view-dashboard">
+                <h2 class="text-lg font-bold mb-4">Dashboard</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-xl border p-6">
+                        <h3 class="font-semibold mb-4">Receipt</h3>
+                        <button onclick="switchView('receipts')" class="w-full py-4 px-4 border-2 border-dashed border-sky-200 rounded-lg text-sky-600 font-semibold hover:bg-sky-50" id="receiptBtn">0 to receive</button>
+                        <p class="mt-3 text-sm text-slate-500"><span id="receiptLate" class="text-amber-600 font-medium">0</span> Late · <span id="receiptOps">0</span> operations</p>
+                    </div>
+                    <div class="bg-white rounded-xl border p-6">
+                        <h3 class="font-semibold mb-4">Delivery</h3>
+                        <button onclick="switchView('deliveries')" class="w-full py-4 px-4 border-2 border-dashed border-amber-200 rounded-lg text-amber-600 font-semibold hover:bg-amber-50" id="deliveryBtn">0 to Deliver</button>
+                        <p class="mt-3 text-sm text-slate-500"><span id="deliveryLate" class="text-amber-600 font-medium">0</span> Late · <span id="deliveryWait">0</span> waiting · <span id="deliveryOps">0</span> operations</p>
+                    </div>
+                </div>
+                <div class="mt-6 p-4 bg-slate-100 rounded-lg text-xs text-slate-600">
+                    <strong>Legend:</strong> Late = schedule date &lt; today · Operations = schedule date &gt; today · Waiting = Waiting for stocks
+                </div>
+            </div>
 
-    el.style.opacity='1';
-    setTimeout(()=>{el.style.opacity='0';},3000);
-}
+            <!-- OPERATIONS (submenu: Receipt, Delivery, Transfer, Adjustment) -->
+            <div id="view-operations" class="hidden">
+                <h2 class="text-lg font-bold mb-4">Operations</h2>
+                <div class="flex flex-wrap gap-4">
+                    <button onclick="switchView('receipts')" class="px-4 py-2 bg-sky-100 text-sky-700 rounded-lg font-medium">1. Receipt</button>
+                    <button onclick="switchView('deliveries')" class="px-4 py-2 bg-amber-100 text-amber-700 rounded-lg font-medium">2. Delivery</button>
+                    <button onclick="switchView('transfer')" class="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg font-medium">3. Internal Transfer</button>
+                    <button onclick="switchView('adjustment')" class="px-4 py-2 bg-violet-100 text-violet-700 rounded-lg font-medium">4. Adjustment</button>
+                </div>
+            </div>
 
-function showLogin(){
-    document.getElementById('loginForm').classList.remove('hidden');
-    document.getElementById('signupForm').classList.add('hidden');
-    document.getElementById('forgotForm').classList.add('hidden');
-}
+            <!-- RECEIPTS List -->
+            <div id="view-receipts" class="hidden space-y-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex gap-2">
+                        <button onclick="showNewReceipt()" class="px-4 py-2 bg-sky-600 text-white rounded-lg font-semibold text-sm">NEW</button>
+                        <h2 class="text-lg font-bold">Receipts</h2>
+                    </div>
+                    <div class="flex gap-2">
+                        <input id="receiptSearch" placeholder="Search by reference & contacts" class="px-4 py-2 border rounded-lg text-sm w-64" oninput="refreshReceipts()">
+                        <span class="text-slate-400" title="List view">≡</span>
+                        <span class="text-slate-400" title="Kanban view">⊞</span>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl border overflow-hidden">
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-50"><tr><th class="px-4 py-3 text-left font-semibold">Reference</th><th class="px-4 py-3 text-left">From</th><th class="px-4 py-3 text-left">To</th><th class="px-4 py-3 text-left">Contact</th><th class="px-4 py-3 text-left">Schedule date</th><th class="px-4 py-3 text-left">Status</th></tr></thead>
+                        <tbody id="receiptsTableBody"></tbody>
+                    </table>
+                </div>
+                <div id="receiptDetail" class="hidden bg-white rounded-xl border p-6 space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-bold" id="recDetailTitle">New Receipt</h3>
+                        <div class="flex gap-2">
+                            <button id="recMarkDoneBtn" onclick="markReceiptDone()" class="hidden px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold">Mark as Done</button>
+                            <button id="recSaveDraftBtn" onclick="validateReceipt()" class="px-4 py-2 bg-sky-600 text-white rounded-lg text-sm font-semibold">Save Draft</button>
+                            <button onclick="printReceipt()" class="px-4 py-2 border rounded-lg text-sm">Print</button>
+                            <button onclick="closeReceiptDetail()" class="px-4 py-2 border rounded-lg text-sm">Cancel</button>
+                        </div>
+                    </div>
+                    <div class="flex gap-4 items-center text-sm"><span>Draft</span>→<span>Done</span></div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="block text-xs font-semibold text-slate-600 mb-1">Reference</label><input id="recRef" readonly class="w-full px-4 py-2 border rounded-lg bg-slate-50 text-sm"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600 mb-1">To Location</label><select id="recToLoc" class="w-full px-4 py-2 border rounded-lg text-sm"></select></div>
+                        <div><label class="block text-xs font-semibold text-slate-600 mb-1">Receive From</label><input id="recFrom" class="w-full px-4 py-2 border rounded-lg text-sm" placeholder="Vendor/supplier"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600 mb-1">Contact</label><input id="recContact" class="w-full px-4 py-2 border rounded-lg text-sm" placeholder="Contact name"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600 mb-1">Schedule Date</label><input id="recSched" type="date" class="w-full px-4 py-2 border rounded-lg text-sm"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600 mb-1">Responsible</label><input id="recResp" class="w-full px-4 py-2 border rounded-lg text-sm" placeholder="Auto: logged user"></div>
+                    </div>
+                    <div><label class="block text-xs font-semibold text-slate-600 mb-1">Products</label>
+                        <div id="recProducts" class="space-y-2"></div>
+                        <div class="flex gap-2 mt-2">
+                            <select id="recProdSelect" class="px-4 py-2 border rounded-lg text-sm flex-1"></select>
+                            <input id="recProdQty" type="number" placeholder="Qty" class="w-20 px-2 py-2 border rounded-lg text-sm">
+                            <button onclick="addRecProduct()" class="px-4 py-2 bg-slate-200 rounded-lg text-sm font-medium">Add product</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-function showSignup(){
-    document.getElementById('loginForm').classList.add('hidden');
-    document.getElementById('signupForm').classList.remove('hidden');
-    document.getElementById('forgotForm').classList.add('hidden');
-}
+            <!-- DELIVERIES List -->
+            <div id="view-deliveries" class="hidden space-y-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex gap-2">
+                        <button onclick="showNewDelivery()" class="px-4 py-2 bg-sky-600 text-white rounded-lg font-semibold text-sm">NEW</button>
+                        <h2 class="text-lg font-bold">Delivery</h2>
+                    </div>
+                    <div class="flex gap-2">
+                        <input id="deliverySearch" placeholder="Search by reference & contacts" class="px-4 py-2 border rounded-lg text-sm w-64" oninput="refreshDeliveries()">
+                        <span class="text-slate-400">≡</span><span class="text-slate-400">⊞</span>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl border overflow-hidden">
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-50"><tr><th class="px-4 py-3 text-left font-semibold">Reference</th><th class="px-4 py-3 text-left">From</th><th class="px-4 py-3 text-left">To</th><th class="px-4 py-3 text-left">Contact</th><th class="px-4 py-3 text-left">Schedule date</th><th class="px-4 py-3 text-left">Status</th></tr></thead>
+                        <tbody id="deliveriesTableBody"></tbody>
+                    </table>
+                </div>
+                <div id="deliveryDetail" class="hidden bg-white rounded-xl border p-6 space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-bold" id="delDetailTitle">New Delivery</h3>
+                        <div class="flex gap-2">
+                            <button id="delMarkDoneBtn" onclick="markDeliveryDone()" class="hidden px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold">Mark as Done</button>
+                            <button id="delSaveDraftBtn" onclick="validateDelivery()" class="px-4 py-2 bg-sky-600 text-white rounded-lg text-sm font-semibold">Save Draft</button>
+                            <button onclick="printDelivery()" class="px-4 py-2 border rounded-lg text-sm">Print</button>
+                            <button onclick="closeDeliveryDetail()" class="px-4 py-2 border rounded-lg text-sm">Cancel</button>
+                        </div>
+                    </div>
+                    <div class="flex gap-4 items-center text-sm"><span>Draft</span>→<span>Done</span></div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="block text-xs font-semibold text-slate-600 mb-1">Reference</label><input id="delRef" readonly class="w-full px-4 py-2 border rounded-lg bg-slate-50 text-sm"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600 mb-1">From Location</label><select id="delFromLoc" class="w-full px-4 py-2 border rounded-lg text-sm"></select></div>
+                        <div><label class="block text-xs font-semibold text-slate-600 mb-1">Delivery Address</label><input id="delAddr" class="w-full px-4 py-2 border rounded-lg text-sm"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600 mb-1">Contact</label><input id="delContact" class="w-full px-4 py-2 border rounded-lg text-sm" placeholder="Customer/contact"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600 mb-1">Schedule Date</label><input id="delSched" type="date" class="w-full px-4 py-2 border rounded-lg text-sm"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600 mb-1">Responsible</label><input id="delResp" class="w-full px-4 py-2 border rounded-lg text-sm"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600 mb-1">Operation type</label><select id="delOpType" class="w-full px-4 py-2 border rounded-lg text-sm"><option>delivery</option></select></div>
+                    </div>
+                    <div><label class="block text-xs font-semibold text-slate-600 mb-1">Products (red = out of stock)</label>
+                        <div id="delProducts" class="space-y-2"></div>
+                        <div class="flex gap-2 mt-2">
+                            <select id="delProdSelect" class="px-4 py-2 border rounded-lg text-sm flex-1"></select>
+                            <input id="delProdQty" type="number" placeholder="Qty" class="w-20 px-2 py-2 border rounded-lg text-sm">
+                            <button onclick="addDelProduct()" class="px-4 py-2 bg-slate-200 rounded-lg text-sm font-medium">Add product</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-function showForgotPassword(){
-    document.getElementById('loginForm').classList.add('hidden');
-    document.getElementById('signupForm').classList.add('hidden');
-    document.getElementById('forgotForm').classList.remove('hidden');
-    document.getElementById('otpStep2').classList.add('hidden');
-}
+            <!-- INTERNAL TRANSFER -->
+            <div id="view-transfer" class="hidden space-y-4">
+                <h2 class="text-lg font-bold">Internal Transfer</h2>
+                <p class="text-sm text-slate-600">Move stock between locations. Total stock unchanged.</p>
+                <div class="bg-white rounded-xl border p-6">
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                        <div><label class="block text-xs font-semibold text-slate-600 mb-1">Product</label><select id="trProduct" class="w-full px-4 py-2 border rounded-lg text-sm"></select></div>
+                        <div><label class="block text-xs font-semibold text-slate-600 mb-1">Quantity</label><input id="trQty" type="number" placeholder="Qty" class="w-full px-4 py-2 border rounded-lg text-sm"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600 mb-1">From</label><select id="trFrom" class="w-full px-4 py-2 border rounded-lg text-sm"></select></div>
+                        <div><label class="block text-xs font-semibold text-slate-600 mb-1">To</label><select id="trTo" class="w-full px-4 py-2 border rounded-lg text-sm"></select></div>
+                        <div class="flex items-end"><button onclick="doTransfer()" class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold text-sm">Transfer</button></div>
+                    </div>
+                </div>
+            </div>
 
-async function handleLogin(){
-    const loginId = document.getElementById('loginId').value.trim();
-    const password = document.getElementById('loginPass').value;
+            <!-- ADJUSTMENT -->
+            <div id="view-adjustment" class="hidden space-y-4">
+                <h2 class="text-lg font-bold">Stock Adjustment</h2>
+                <p class="text-sm text-slate-600">Fix mismatches (e.g. damaged, lost). Enter negative qty to reduce stock.</p>
+                <div class="bg-white rounded-xl border p-6">
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                        <div><label class="block text-xs font-semibold text-slate-600 mb-1">Product</label><select id="adjProduct" class="w-full px-4 py-2 border rounded-lg text-sm"></select></div>
+                        <div><label class="block text-xs font-semibold text-slate-600 mb-1">Location</label><select id="adjLocation" class="w-full px-4 py-2 border rounded-lg text-sm"></select></div>
+                        <div><label class="block text-xs font-semibold text-slate-600 mb-1">Qty change (e.g. -3 for damage)</label><input id="adjQty" type="number" placeholder="-3" class="w-full px-4 py-2 border rounded-lg text-sm"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600 mb-1">Reason</label><input id="adjReason" placeholder="e.g. Damaged" class="w-full px-4 py-2 border rounded-lg text-sm"></div>
+                        <div class="flex items-end"><button onclick="doAdjustment()" class="w-full px-4 py-2 bg-violet-600 text-white rounded-lg font-semibold text-sm">Apply</button></div>
+                    </div>
+                </div>
+            </div>
 
-    if(!loginId || !password){
-        toast('Login Id and Password required','err');
-        return;
-    }
+            <!-- PRODUCTS -->
+            <div id="view-products" class="hidden space-y-4">
+                <h2 class="text-lg font-bold">Products</h2>
+                <div class="bg-white rounded-xl border p-6">
+                    <h3 class="font-semibold mb-4">Add Product</h3>
+                    <div class="flex gap-4">
+                        <input id="prodName" placeholder="Name" class="flex-1 px-4 py-2 border rounded-lg text-sm">
+                        <input id="prodCost" type="number" step="0.01" placeholder="Per unit cost" class="w-32 px-4 py-2 border rounded-lg text-sm">
+                        <input id="prodQty" type="number" placeholder="On hand" class="w-24 px-4 py-2 border rounded-lg text-sm">
+                        <button onclick="addProduct()" class="px-4 py-2 bg-sky-600 text-white rounded-lg font-semibold text-sm">Add</button>
+                    </div>
+                </div>
+            </div>
 
-    try{
-        const res = await api('/api/login',{
-            method:'POST',
-            body:JSON.stringify({login_id:loginId,password})
-        });
+            <!-- STOCK -->
+            <div id="view-stock" class="hidden space-y-4">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-lg font-bold">Stock</h2>
+                    <input id="stockSearch" placeholder="Search" class="px-4 py-2 border rounded-lg text-sm w-48" oninput="refreshStock()">
+                </div>
+                <p class="text-sm text-slate-600">User must be able to update the stock from here.</p>
+                <div class="bg-white rounded-xl border overflow-hidden">
+                    <table class="w-full text-sm" id="stockTable">
+                        <thead class="bg-slate-50"><tr><th class="px-4 py-3 text-left font-semibold">Product</th><th class="px-4 py-3 text-left">per unit cost</th><th class="px-4 py-3 text-left">On hand</th><th class="px-4 py-3 text-left">Locations</th></tr></thead>
+                        <tbody id="stockTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
 
-        const data = await res.json();
+            <!-- MOVE HISTORY -->
+            <div id="view-moves" class="hidden space-y-4">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-lg font-bold">Move History</h2>
+                    <input id="movesSearch" placeholder="Search by reference & contacts" class="px-4 py-2 border rounded-lg text-sm w-64" oninput="refreshMoves()">
+                </div>
+                <div class="bg-white rounded-xl border overflow-hidden">
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-50"><tr><th class="px-4 py-3 text-left font-semibold">Reference</th><th class="px-4 py-3 text-left">Date</th><th class="px-4 py-3 text-left">Contact</th><th class="px-4 py-3 text-left">From</th><th class="px-4 py-3 text-left">To</th><th class="px-4 py-3 text-left">Qty</th><th class="px-4 py-3 text-left">Type</th></tr></thead>
+                        <tbody id="movesTableBody"></tbody>
+                    </table>
+                </div>
+                <p class="text-xs text-slate-500">IN = green, OUT = red, Transfer = blue, Adjustment = purple</p>
+            </div>
 
-        if(!res.ok) throw new Error(data.detail || 'Invalid credentials');
+            <!-- SETTINGS: Warehouse & Location -->
+            <div id="view-settings" class="hidden space-y-8">
+                <h2 class="text-lg font-bold">Settings</h2>
+                <p class="text-sm text-slate-600">Warehouse details &amp; location</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-xl border p-6">
+                        <h3 class="font-semibold mb-4">Warehouse</h3>
+                        <div class="space-y-3">
+                            <div><label class="block text-xs font-semibold text-slate-600 mb-1">Name</label><input id="whName" class="w-full px-4 py-2 border rounded-lg text-sm"></div>
+                            <div><label class="block text-xs font-semibold text-slate-600 mb-1">Short Code</label><input id="whCode" class="w-full px-4 py-2 border rounded-lg text-sm"></div>
+                            <div><label class="block text-xs font-semibold text-slate-600 mb-1">Address</label><input id="whAddr" class="w-full px-4 py-2 border rounded-lg text-sm"></div>
+                            <button onclick="addWarehouse()" class="px-4 py-2 bg-sky-600 text-white rounded-lg text-sm font-semibold">Add Warehouse</button>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl border p-6">
+                        <h3 class="font-semibold mb-4">Location</h3>
+                        <p class="text-xs text-slate-500 mb-3">Multiple locations within warehouse (rows etc.)</p>
+                        <div class="space-y-3">
+                            <div><label class="block text-xs font-semibold text-slate-600 mb-1">Name</label><input id="locName" class="w-full px-4 py-2 border rounded-lg text-sm"></div>
+                            <div><label class="block text-xs font-semibold text-slate-600 mb-1">Short Code</label><input id="locCode" class="w-full px-4 py-2 border rounded-lg text-sm"></div>
+                            <div><label class="block text-xs font-semibold text-slate-600 mb-1">warehouse</label><select id="locWh" class="w-full px-4 py-2 border rounded-lg text-sm"></select></div>
+                            <button onclick="addLocation()" class="px-4 py-2 bg-sky-600 text-white rounded-lg text-sm font-semibold">Add Location</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
 
-        user = {
-            name:data.user_name,
-            email:data.user_email,
-            login_id:data.login_id
-        };
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-lg text-sm font-medium shadow-lg opacity-0 pointer-events-none z-50 toast"></div>
 
-        document.getElementById('authSection').classList.add('hidden');
-        document.getElementById('appSection').classList.remove('hidden');
+    <script>
+        const API = (window.location.origin && window.location.origin !== 'null' && window.location.protocol !== 'file:') ? window.location.origin : 'http://localhost:8000';
+        let user = { name: '', email: '', login_id: '' };
+        let recDraftProducts = [];
+        let delDraftProducts = [];
+        let editReceiptId = null, editDeliveryId = null;
 
-        const badge = document.getElementById('userBadge');
-        badge.textContent = (user.name || user.login_id || 'U')[0].toUpperCase();
-
-        document.getElementById('recResp').placeholder = user.name || user.login_id;
-        document.getElementById('delResp').placeholder = user.name || user.login_id;
-
-        refreshAll();
-
-        if(refreshTimer) clearInterval(refreshTimer);
-        refreshTimer = setInterval(refreshAll,5000);
-
-    }catch(e){
-        toast(e.message,'err');
-    }
-}
-
-function handleSignOut(){
-    if(refreshTimer){
-        clearInterval(refreshTimer);
-        refreshTimer = null;
-    }
-
-    user = {name:'',email:'',login_id:''};
-
-    document.getElementById('appSection').classList.add('hidden');
-    document.getElementById('authSection').classList.remove('hidden');
-
-    showLogin();
-}
-
-function safeInt(v){
-    const n = parseInt(v);
-    return isNaN(n) ? 0 : n;
-}
-
-function safeFloat(v){
-    const n = parseFloat(v);
-    return isNaN(n) ? 0 : n;
-}
-
-async function doTransfer(){
-
-    const pid = document.getElementById('trProduct').value;
-    const qty = safeInt(document.getElementById('trQty').value);
-    const from = document.getElementById('trFrom').value;
-    const to = document.getElementById('trTo').value;
-
-    if(!pid || qty<=0 || !from || !to){
-        toast('Fill all fields','err');
-        return;
-    }
-
-    if(from===to){
-        toast('From and To must be different','err');
-        return;
-    }
-
-    try{
-
-        const res = await api('/api/transfers',{
-            method:'POST',
-            body:JSON.stringify({
-                product_id:pid,
-                from_location:from,
-                to_location:to,
-                qty:qty
-            })
-        });
-
-        if(!res.ok){
-            const e = await res.json();
-            throw new Error(e.detail);
+        function api(path, opts = {}) {
+            return fetch(${API}${path.startsWith('/') ? path : '/api/' + path}, { headers: { 'Content-Type': 'application/json', ...opts.headers }, ...opts });
         }
 
-        toast('Transfer completed');
-
-        document.getElementById('trQty').value='';
-
-        refreshAll();
-
-    }catch(e){
-        toast(e.message,'err');
-    }
-}
-
-async function doAdjustment(){
-
-    const pid = document.getElementById('adjProduct').value;
-    const loc = document.getElementById('adjLocation').value;
-    const qty = safeInt(document.getElementById('adjQty').value);
-    const reason = document.getElementById('adjReason').value.trim();
-
-    if(!pid || qty===0){
-        toast('Enter valid qty change','err');
-        return;
-    }
-
-    try{
-
-        const res = await api('/api/adjustments',{
-            method:'POST',
-            body:JSON.stringify({
-                product_id:pid,
-                location:loc,
-                qty_change:qty,
-                reason:reason
-            })
-        });
-
-        if(!res.ok){
-            const e = await res.json();
-            throw new Error(e.detail);
+        function toast(msg, type = 'info') {
+            const el = document.getElementById('toast');
+            el.textContent = msg;
+            el.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-lg text-sm font-medium shadow-lg z-50 toast ' + (type === 'err' ? 'bg-red-600' : 'bg-slate-800') + ' text-white';
+            el.style.opacity = '1';
+            setTimeout(() => el.style.opacity = '0', 3000);
         }
 
-        toast('Adjustment applied');
+        function showLogin() { document.getElementById('loginForm').classList.remove('hidden'); document.getElementById('signupForm').classList.add('hidden'); document.getElementById('forgotForm').classList.add('hidden'); }
+        function showSignup() { document.getElementById('loginForm').classList.add('hidden'); document.getElementById('signupForm').classList.remove('hidden'); document.getElementById('forgotForm').classList.add('hidden'); }
+        function showForgotPassword() { document.getElementById('loginForm').classList.add('hidden'); document.getElementById('signupForm').classList.add('hidden'); document.getElementById('forgotForm').classList.remove('hidden'); document.getElementById('otpStep2').classList.add('hidden'); }
 
-        document.getElementById('adjQty').value='';
-        document.getElementById('adjReason').value='';
+        async function handleLogin() {
+            const loginId = document.getElementById('loginId').value.trim();
+            const password = document.getElementById('loginPass').value;
+            if (!loginId || !password) { toast('Login Id and Password required', 'err'); return; }
+            try {
+                const res = await api('/api/login', { method: 'POST', body: JSON.stringify({ login_id: loginId, password }) });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Invalid credentials');
+                user = { name: data.user_name, email: data.user_email, login_id: data.login_id };
+                document.getElementById('authSection').classList.add('hidden');
+                document.getElementById('appSection').classList.remove('hidden');
+                document.getElementById('userBadge').textContent = (user.name || user.login_id || 'U')[0].toUpperCase();
+                document.getElementById('recResp').placeholder = user.name || user.login_id;
+                document.getElementById('delResp').placeholder = user.name || user.login_id;
+                refreshAll();
+                setInterval(refreshAll, 5000);
+            } catch (e) { toast(e.message, 'err'); }
+        }
 
-        refreshAll();
+        async function handleSignup() {
+            const loginId = document.getElementById('suLoginId').value.trim();
+            const email = document.getElementById('suEmail').value.trim();
+            const pass = document.getElementById('suPass').value;
+            const confirm = document.getElementById('suConfirm').value;
+            if (!loginId || !email || !pass) { toast('All fields required', 'err'); return; }
+            if (pass !== confirm) { toast('Passwords do not match', 'err'); return; }
+            try {
+                const res = await api('/api/register', { method: 'POST', body: JSON.stringify({ login_id: loginId, email, password: pass, confirm_password: confirm }) });
+                if (!res.ok) throw new Error((await res.json()).detail);
+                toast('Account created');
+                showLogin();
+            } catch (e) { toast(e.message, 'err'); }
+        }
 
-    }catch(e){
-        toast(e.message,'err');
-    }
-}
-</script>
+        async function requestOTP() {
+            const email = document.getElementById('forgotEmail').value.trim();
+            const res = await api('/api/request-otp', { method: 'POST', body: JSON.stringify({ email }) });
+            if (!res.ok) { toast((await res.json()).detail, 'err'); return; }
+            document.getElementById('otpStep2').classList.remove('hidden');
+            toast('OTP sent. Check server console.');
+        }
+
+        async function resetPassword() {
+            const email = document.getElementById('forgotEmail').value.trim();
+            const res = await api('/api/reset-password', { method: 'POST', body: JSON.stringify({ email, otp: document.getElementById('otpCode').value, new_password: document.getElementById('otpNewPass').value }) });
+            if (!res.ok) { toast((await res.json()).detail, 'err'); return; }
+            toast('Password reset'); showLogin();
+        }
+
+        function logout() { user = {}; document.getElementById('authSection').classList.remove('hidden'); document.getElementById('appSection').classList.add('hidden'); }
+
+        const VIEWS = ['dashboard','operations','receipts','deliveries','transfer','adjustment','products','stock','moves','settings'];
+        function switchView(v) {
+            VIEWS.forEach(x => { const el = document.getElementById('view-'+x); if(el) el.classList.add('hidden'); });
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            const vEl = document.getElementById('view-'+v);
+            if (vEl) vEl.classList.remove('hidden');
+            const nEl = document.getElementById('nav-'+v);
+            if (nEl) nEl.classList.add('active');
+            if (['receipts','deliveries','transfer','adjustment','stock','moves','settings'].includes(v)) refreshView(v);
+        }
+
+        async function refreshAll() {
+            try {
+                const [stats, rec, del] = await Promise.all([api('/api/stats').then(r=>r.json()), api('/api/receipts').then(r=>r.json()), api('/api/deliveries').then(r=>r.json())]);
+                document.getElementById('receiptBtn').textContent = (stats.receipt_to_receive||0) + ' to receive';
+                document.getElementById('receiptLate').textContent = stats.receipt_late||0;
+                document.getElementById('receiptOps').textContent = stats.receipt_operations||0;
+                document.getElementById('deliveryBtn').textContent = (stats.delivery_to_deliver||0) + ' to Deliver';
+                document.getElementById('deliveryLate').textContent = stats.delivery_late||0;
+                document.getElementById('deliveryWait').textContent = stats.delivery_waiting||0;
+                document.getElementById('deliveryOps').textContent = stats.delivery_operations||0;
+                refreshView('receipts'); refreshView('deliveries'); refreshView('stock'); refreshView('moves');
+                const prods = (await api('/api/products').then(r=>r.json())).products || [];
+                const prodOpt = prods.map(p => <option value="${p.id}">[${p.id.slice(0,8)}] ${p.name}</option>).join('');
+                ['recProdSelect','delProdSelect','trProduct','adjProduct'].forEach(id => { const s = document.getElementById(id); if(s) s.innerHTML = '<option value="">Select</option>'+prodOpt; });
+                const whs = (await api('/api/warehouses').then(r=>r.json())).warehouses || [];
+                const whOpt = whs.map(w => <option value="${w.id}">${w.short_code}</option>).join('');
+                const locWh = document.getElementById('locWh'); if(locWh) locWh.innerHTML = whOpt;
+                const locs = (await api('/api/locations').then(r=>r.json())).locations || [];
+                const locOpt = locs.map(l => <option value="${l.name}">${l.name}</option>).join('');
+                ['recToLoc','delFromLoc','trFrom','trTo','adjLocation'].forEach(id => { const s = document.getElementById(id); if(s) s.innerHTML = locOpt; });
+            } catch (e) {}
+        }
+
+        function refreshView(v) {
+            if (v === 'receipts') refreshReceipts();
+            else if (v === 'deliveries') refreshDeliveries();
+            else if (v === 'stock') refreshStock();
+            else if (v === 'moves') refreshMoves();
+            else if (v === 'transfer' || v === 'adjustment') { const prods = document.getElementById('recProdSelect'); if(prods) { const prodOpt = prods.innerHTML; const trP = document.getElementById('trProduct'); const adjP = document.getElementById('adjProduct'); if(trP) trP.innerHTML = prodOpt; if(adjP) adjP.innerHTML = prodOpt; } }
+        }
+
+        async function refreshReceipts() {
+            const search = document.getElementById('receiptSearch')?.value || '';
+            const params = new URLSearchParams({ login_id: user.login_id });
+            if (search) params.set('search', search);
+            const r = await api('/api/receipts?' + params.toString());
+            const d = await r.json();
+            const list = d.receipts || [];
+            document.getElementById('receiptsTableBody').innerHTML = list.map(r =>
+                <tr class="border-b hover:bg-slate-50 cursor-pointer" onclick="openReceiptDetail('${r.id}')"><td class="px-4 py-3 font-mono">${r.reference}</td><td class="px-4 py-3">${r.from_loc}</td><td class="px-4 py-3">${r.to_loc}</td><td class="px-4 py-3">${r.contact}</td><td class="px-4 py-3">${r.schedule_date||''}</td><td class="px-4 py-3">${r.status}</td></tr>
+            ).join('') || '<tr><td colspan="6" class="px-4 py-6 text-center text-slate-500">No receipts</td></tr>';
+        }
+
+        async function refreshDeliveries() {
+            const search = document.getElementById('deliverySearch')?.value || '';
+            const params = new URLSearchParams({ login_id: user.login_id });
+            if (search) params.set('search', search);
+            const r = await api('/api/deliveries?' + params.toString());
+            const d = await r.json();
+            const list = d.deliveries || [];
+            document.getElementById('deliveriesTableBody').innerHTML = list.map(d =>
+                <tr class="border-b hover:bg-slate-50 cursor-pointer" onclick="openDeliveryDetail('${d.id}')"><td class="px-4 py-3 font-mono">${d.reference}</td><td class="px-4 py-3">${d.from_loc}</td><td class="px-4 py-3">${d.to_loc}</td><td class="px-4 py-3">${d.contact}</td><td class="px-4 py-3">${d.schedule_date||''}</td><td class="px-4 py-3">${d.status}</td></tr>
+            ).join('') || '<tr><td colspan="6" class="px-4 py-6 text-center text-slate-500">No deliveries</td></tr>';
+        }
+
+        async function refreshStock() {
+            const r = await api('/api/stock');
+            const d = await r.json();
+            const list = d.stock || [];
+            const search = (document.getElementById('stockSearch')?.value || '').toLowerCase();
+            let items = list;
+            if (search) items = items.filter(s => (s.product||'').toLowerCase().includes(search));
+            const locStr = (s) => Object.entries(s.locations||{}).map(([loc,q]) => ${loc}: ${q}).join(', ') || '-';
+            document.getElementById('stockTableBody').innerHTML = items.map(s =>
+                <tr class="border-b"><td class="px-4 py-3">${s.product}</td><td class="px-4 py-3"><input type="number" step="0.01" value="${s.per_unit_cost}" onchange="updateStockField('${s.product_id}','per_unit_cost',this.value)" class="w-24 px-2 py-1 border rounded text-sm"></td><td class="px-4 py-3 font-semibold">${s.on_hand}</td><td class="px-4 py-3 text-slate-600 text-xs">${locStr(s)}</td></tr>
+            ).join('') || '<tr><td colspan="4" class="px-4 py-6 text-center text-slate-500">No stock. Add products first.</td></tr>';
+        }
+
+        async function updateStockField(pid, field, val) {
+            const num = field === 'per_unit_cost' ? parseFloat(val) : parseInt(val);
+            if (field === 'per_unit_cost' && (isNaN(num) || num < 0)) return;
+            if (field !== 'per_unit_cost') return;
+            await api('/api/products/'+pid, { method: 'PATCH', body: JSON.stringify({ [field]: num }) });
+            toast('Updated');
+            refreshStock();
+        }
+
+        async function refreshMoves() {
+            const search = document.getElementById('movesSearch')?.value || '';
+            const r = await api('/api/moves' + (search ? '?search=' + encodeURIComponent(search) : ''));
+            const d = await r.json();
+            const list = d.moves || [];
+            document.getElementById('movesTableBody').innerHTML = list.map(m => {
+                let rowClass = 'move-out';
+                if (m.type === 'IN') rowClass = 'move-in';
+                else if (m.type === 'Transfer') rowClass = 'move-transfer';
+                else if (m.type === 'Adjustment') rowClass = 'move-adjustment';
+                return <tr class="border-b ${rowClass}"><td class="px-4 py-3 font-mono">${m.reference}</td><td class="px-4 py-3">${m.date}</td><td class="px-4 py-3">${m.contact}</td><td class="px-4 py-3">${m.from_loc}</td><td class="px-4 py-3">${m.to_loc}</td><td class="px-4 py-3">${m.qty}</td><td class="px-4 py-3">${m.type}</td></tr>;
+            }).join('') || '<tr><td colspan="7" class="px-4 py-6 text-center text-slate-500">No moves</td></tr>';
+        }
+
+        function showNewReceipt() {
+            editReceiptId = null;
+            recDraftProducts = [];
+            document.getElementById('recDetailTitle').textContent = 'New Receipt';
+            document.getElementById('recRef').value = 'WH/IN/... (auto)';
+            document.getElementById('recFrom').value = '';
+            document.getElementById('recContact').value = '';
+            document.getElementById('recSched').value = '';
+            document.getElementById('recResp').value = user.name || user.login_id || '';
+            document.getElementById('recProducts').innerHTML = '';
+            document.getElementById('recMarkDoneBtn').classList.add('hidden');
+            document.getElementById('recSaveDraftBtn').classList.remove('hidden');
+            document.getElementById('receiptDetail').dataset.editId = '';
+            document.getElementById('receiptDetail').classList.remove('hidden');
+        }
+
+        function addRecProduct() {
+            const sel = document.getElementById('recProdSelect');
+            const pid = sel.value;
+            const qty = parseInt(document.getElementById('recProdQty').value) || 0;
+            if (!pid || qty < 1) { toast('Select product and enter qty', 'err'); return; }
+            const name = sel.options[sel.selectedIndex]?.text || '';
+            recDraftProducts.push({ product_id: pid, product_name: name, qty });
+            document.getElementById('recProducts').innerHTML = recDraftProducts.map(p =>
+                <div class="flex justify-between py-1"><span>[${p.product_id.slice(0,8)}] ${p.product_name} Qty: ${p.qty}</span></div>
+            ).join('');
+            document.getElementById('recProdQty').value = '';
+        }
+
+        async function validateReceipt() {
+            const from = document.getElementById('recFrom').value.trim() || 'vendor';
+            const contact = document.getElementById('recContact').value.trim() || 'Contact';
+            const sched = document.getElementById('recSched').value;
+            const resp = document.getElementById('recResp').value.trim();
+            if (recDraftProducts.length === 0) { toast('Add at least one product', 'err'); return; }
+            const toLoc = document.getElementById('recToLoc')?.value || 'Main Store';
+            try {
+                const res = await api('/api/receipts', { method: 'POST', body: JSON.stringify({
+                    receive_from: from, contact, to_location: toLoc, schedule_date: sched || null, responsible: resp,
+                    login_id: user.login_id,
+                    products: recDraftProducts
+                }) });
+                if (!res.ok) throw new Error((await res.json()).detail);
+                toast('Receipt saved as Draft');
+                closeReceiptDetail();
+                refreshAll();
+            } catch (e) { toast(e.message, 'err'); }
+        }
+
+        async function openReceiptDetail(id) {
+            const res = await api('/api/receipts/' + id);
+            const r = await res.json();
+            document.getElementById('recDetailTitle').textContent = r.reference;
+            document.getElementById('recRef').value = r.reference;
+            document.getElementById('recFrom').value = r.receive_from || '';
+            document.getElementById('recContact').value = r.contact || '';
+            document.getElementById('recSched').value = r.schedule_date || '';
+            document.getElementById('recResp').value = r.responsible || '';
+            recDraftProducts = (r.products || []).map(p => ({ product_id: p.product_id, product_name: p.product_name, qty: p.qty }));
+            document.getElementById('recProducts').innerHTML = recDraftProducts.map(p =>
+                <div class="flex justify-between py-1"><span>[${p.product_id.slice(0,8)}] ${p.product_name} Qty: ${p.qty}</span></div>
+            ).join('');
+            const isDraft = r.status === 'Draft';
+            document.getElementById('recMarkDoneBtn').classList.toggle('hidden', !isDraft);
+            document.getElementById('recSaveDraftBtn').classList.toggle('hidden', !isDraft);
+            document.getElementById('receiptDetail').dataset.editId = id;
+            document.getElementById('receiptDetail').classList.remove('hidden');
+        }
+
+        async function markReceiptDone() {
+            const id = document.getElementById('receiptDetail').dataset.editId;
+            if (!id) { toast('No receipt selected', 'err'); return; }
+            try {
+                const res = await api('/api/receipts/' + id + '/done', { method: 'POST' });
+                if (!res.ok) throw new Error((await res.json()).detail);
+                toast('Receipt marked as Done');
+                closeReceiptDetail();
+                refreshAll();
+            } catch (e) { toast(e.message, 'err'); }
+        }
+
+        function closeReceiptDetail() { document.getElementById('receiptDetail').classList.add('hidden'); refreshReceipts(); }
+        function printReceipt() { toast('Print receipt'); }
+
+        function showNewDelivery() {
+            editDeliveryId = null;
+            delDraftProducts = [];
+            document.getElementById('delRef').value = 'WH/OUT/... (auto)';
+            document.getElementById('delAddr').value = '';
+            document.getElementById('delContact').value = '';
+            document.getElementById('delSched').value = '';
+            document.getElementById('delResp').value = user.name || user.login_id || '';
+            document.getElementById('delProducts').innerHTML = '';
+            document.getElementById('deliveryDetail').classList.remove('hidden');
+        }
+
+        function addDelProduct() {
+            const sel = document.getElementById('delProdSelect');
+            const pid = sel.value;
+            const qty = parseInt(document.getElementById('delProdQty').value) || 0;
+            if (!pid || qty < 1) { toast('Select product and enter qty', 'err'); return; }
+            const name = sel.options[sel.selectedIndex]?.text || '';
+            delDraftProducts.push({ product_id: pid, product_name: name, qty });
+            document.getElementById('delProducts').innerHTML = delDraftProducts.map(p =>
+                <div class="flex justify-between py-1"><span class="text-slate-700">[${p.product_id.slice(0,8)}] ${p.product_name} Qty: ${p.qty}</span></div>
+            ).join('');
+            document.getElementById('delProdQty').value = '';
+        }
+
+        async function validateDelivery() {
+            const addr = document.getElementById('delAddr').value.trim() || 'Address';
+            const contact = document.getElementById('delContact').value.trim() || 'Customer';
+            const sched = document.getElementById('delSched').value;
+            const resp = document.getElementById('delResp').value.trim();
+            if (delDraftProducts.length === 0) { toast('Add at least one product', 'err'); return; }
+            const fromLoc = document.getElementById('delFromLoc')?.value || 'Main Store';
+            try {
+                const res = await api('/api/deliveries', { method: 'POST', body: JSON.stringify({
+                    delivery_address: addr, contact, from_location: fromLoc, schedule_date: sched || null, responsible: resp,
+                    login_id: user.login_id,
+                    products: delDraftProducts
+                }) });
+                if (!res.ok) throw new Error((await res.json()).detail);
+                toast('Delivery saved as Draft');
+                closeDeliveryDetail();
+                refreshAll();
+            } catch (e) { toast(e.message, 'err'); }
+        }
+
+        async function openDeliveryDetail(id) {
+            const res = await api('/api/deliveries/' + id);
+            const d = await res.json();
+            document.getElementById('delDetailTitle').textContent = d.reference;
+            document.getElementById('delRef').value = d.reference;
+            document.getElementById('delAddr').value = d.delivery_address || '';
+            document.getElementById('delContact').value = d.contact || '';
+            document.getElementById('delSched').value = d.schedule_date || '';
+            document.getElementById('delResp').value = d.responsible || '';
+            delDraftProducts = (d.products || []).map(p => ({ product_id: p.product_id, product_name: p.product_name, qty: p.qty }));
+            document.getElementById('delProducts').innerHTML = delDraftProducts.map(p =>
+                <div class="flex justify-between py-1"><span class="text-slate-700">[${p.product_id.slice(0,8)}] ${p.product_name} Qty: ${p.qty}</span></div>
+            ).join('');
+            const isDraft = d.status === 'Draft';
+            document.getElementById('delMarkDoneBtn').classList.toggle('hidden', !isDraft);
+            document.getElementById('delSaveDraftBtn').classList.toggle('hidden', !isDraft);
+            document.getElementById('deliveryDetail').dataset.editId = id;
+            document.getElementById('deliveryDetail').classList.remove('hidden');
+        }
+
+        async function markDeliveryDone() {
+            const id = document.getElementById('deliveryDetail').dataset.editId;
+            if (!id) { toast('No delivery selected', 'err'); return; }
+            try {
+                const res = await api('/api/deliveries/' + id + '/done', { method: 'POST' });
+                if (!res.ok) throw new Error((await res.json()).detail);
+                toast('Delivery marked as Done');
+                closeDeliveryDetail();
+                refreshAll();
+            } catch (e) { toast(e.message, 'err'); }
+        }
+
+        function handleSignOut() {
+            user = null;
+            document.getElementById('appSection').classList.add('hidden');
+            document.getElementById('authSection').classList.remove('hidden');
+            showLogin();
+        }
+
+        function closeDeliveryDetail() { document.getElementById('deliveryDetail').classList.add('hidden'); refreshDeliveries(); }
+        function printDelivery() { toast('Print delivery'); }
+
+        async function doTransfer() {
+            const pid = document.getElementById('trProduct').value;
+            const qty = parseInt(document.getElementById('trQty').value);
+            const from = document.getElementById('trFrom').value;
+            const to = document.getElementById('trTo').value;
+            if (!pid || !qty || qty < 1 || !from || !to) { toast('Fill all fields', 'err'); return; }
+            if (from === to) { toast('From and To must be different', 'err'); return; }
+            try {
+                const res = await api('/api/transfers', { method: 'POST', body: JSON.stringify({ product_id: pid, from_location: from, to_location: to, qty }) });
+                if (!res.ok) throw new Error((await res.json()).detail);
+                toast('Transfer done');
+                document.getElementById('trQty').value = '';
+                refreshAll();
+            } catch (e) { toast(e.message, 'err'); }
+        }
+
+        async function doAdjustment() {
+            const pid = document.getElementById('adjProduct').value;
+            const loc = document.getElementById('adjLocation')?.value || 'Main Store';
+            const qty = parseInt(document.getElementById('adjQty').value);
+            const reason = document.getElementById('adjReason')?.value.trim() || '';
+            if (!pid || isNaN(qty) || qty === 0) { toast('Select product and enter qty change (e.g. -3 for damage)', 'err'); return; }
+            try {
+                const res = await api('/api/adjustments', { method: 'POST', body: JSON.stringify({ product_id: pid, location: loc, qty_change: qty, reason }) });
+                if (!res.ok) throw new Error((await res.json()).detail);
+                toast('Adjustment applied');
+                document.getElementById('adjQty').value = '';
+                document.getElementById('adjReason').value = '';
+                refreshAll();
+            } catch (e) { toast(e.message, 'err'); }
+        }
+
+        async function addProduct() {
+            const name = document.getElementById('prodName').value.trim();
+            const cost = parseFloat(document.getElementById('prodCost').value) || 0;
+            const qty = parseInt(document.getElementById('prodQty').value) || 0;
+            if (!name) { toast('Product name required', 'err'); return; }
+            const res = await api('/api/products', { method: 'POST', body: JSON.stringify({ name, per_unit_cost: cost, on_hand: qty }) });
+            if (!res.ok) { toast((await res.json()).detail, 'err'); return; }
+            toast('Product added');
+            document.getElementById('prodName').value = ''; document.getElementById('prodCost').value = ''; document.getElementById('prodQty').value = '';
+            refreshAll();
+        }
+
+        async function addWarehouse() {
+            const name = document.getElementById('whName').value.trim();
+            const code = document.getElementById('whCode').value.trim();
+            const addr = document.getElementById('whAddr').value.trim();
+            if (!name || !code) { toast('Name and Short Code required', 'err'); return; }
+            const res = await api('/api/warehouses', { method: 'POST', body: JSON.stringify({ name, short_code: code, address: addr }) });
+            if (!res.ok) { toast((await res.json()).detail, 'err'); return; }
+            toast('Warehouse added');
+            document.getElementById('whName').value = ''; document.getElementById('whCode').value = ''; document.getElementById('whAddr').value = '';
+            refreshAll();
+        }
+
+        async function addLocation() {
+            const name = document.getElementById('locName').value.trim();
+            const code = document.getElementById('locCode').value.trim();
+            const whId = document.getElementById('locWh').value;
+            if (!name || !code || !whId) { toast('Name, Short Code and Warehouse required', 'err'); return; }
+            const res = await api('/api/locations', { method: 'POST', body: JSON.stringify({ name, short_code: code, warehouse_id: whId }) });
+            if (!res.ok) { toast((await res.json()).detail, 'err'); return; }
+            toast('Location added');
+            document.getElementById('locName').value = ''; document.getElementById('locCode').value = '';
+            refreshAll();
+        }
+    </script>
+</body>
+</html>
